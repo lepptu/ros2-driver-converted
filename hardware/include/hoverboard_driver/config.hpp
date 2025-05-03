@@ -1,5 +1,6 @@
 #pragma once
 
+#define DEFAULT_PORT "/dev/ttyAMA2"
 
 #define ENCODER_MIN 0
 #define ENCODER_MAX 9000

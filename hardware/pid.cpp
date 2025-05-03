@@ -5,7 +5,7 @@ PID::PID(double p, double i, double d, double i_max, double i_min, bool antiwind
     : control_toolbox::Pid()
 {
     f_ = 0.0;
-    initPid(p, i, d, i_max, i_min, antiwindup);
+    initialize(p, i, d, i_max, i_min, antiwindup);
     error_ = 0.0;
 
     out_min_ = out_min;
@@ -16,13 +16,13 @@ void PID::init(double f, double p, double i, double d, double i_max, double i_mi
 {
     RCLCPP_INFO(rclcpp::get_logger("hoverboard_driver"), "Initialize PID");
     f_ = f;
-    initPid(p, i, d, i_max, i_min, antiwindup);
+    initialize(p, i, d, i_max, i_min, antiwindup);
     error_ = 0.0;
 
     out_min_ = out_min;
     out_max_ = out_max;
 
-    Gains gains = getGains();
+    Gains gains = get_gains();
     RCLCPP_DEBUG_STREAM(rclcpp::get_logger("hoverboard_driver"), "Initialized PID: F=" << f << ", P=" << gains.p_gain_ << ", I=" << gains.i_gain_ << ", D=" << gains.d_gain_ << ", out_min=" << out_min_ << ", out_max=" << out_max_);
 }
 
@@ -47,8 +47,8 @@ double PID::operator()(const double &measured_value, const double &setpoint, con
 	reset();
     }
 
-    // Use control_toolbox::Pid::computeCommand()
-    double output = computeCommand(error_, dt.nanoseconds());
+    // Use control_toolbox::Pid::compute_command()
+    double output = compute_command(error_, dt.nanoseconds());
     // RCLCPP_DEBUG_STREAM_THROTTLE(node_->get_logger(), clock, dt.nanoseconds(),
     //     "PID computed command: " << output);
 
@@ -68,16 +68,16 @@ void PID::getParameters(double &f, double &p, double &i, double &d, double &i_ma
 void PID::getParameters(double &f, double &p, double &i, double &d, double &i_max, double &i_min, bool &antiwindup)
 {
     f = f_;
-    // Call getGains from control_toolbox
-    getGains(p, i, d, i_max, i_min, antiwindup);
+    // Call get_gains from control_toolbox
+    get_gains(p, i, d, i_max, i_min, antiwindup);
 }
 
 void PID::setParameters(double f, double p, double i, double d, double i_max, double i_min, bool antiwindup)
 {
     f_ = f;
-    setGains(p, i, d, i_max, i_min, antiwindup);
+    set_gains(p, i, d, i_max, i_min, antiwindup);
 
-    Gains gains = getGains();
+    Gains gains = get_gains();
     RCLCPP_DEBUG_STREAM(rclcpp::get_logger("hoverboard_driver"), "Update PID Gains: F=" << f << ", P=" << gains.p_gain_ << ", I=" << gains.i_gain_ << ", D=" << gains.d_gain_ << ", out_min=" << out_min_ << ", out_max=" << out_max_);
 }
 
