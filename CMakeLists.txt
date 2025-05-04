@@ -44,7 +44,7 @@ ament_target_dependencies(
 target_compile_definitions(${PROJECT_NAME} PRIVATE "HOVERBOARD_DRIVER_BUILDING_DLL")
 
 # Export hardware plugins
-pluginlib_export_plugin_description_file(hardware_interface hoverboard_driver.xml)
+pluginlib_export_plugin_description_file(hoverboard_driver hoverboard_driver.xml)
 
 # INSTALL
 install(
