@@ -325,7 +325,7 @@ namespace hoverboard_driver
   }
 
   hardware_interface::return_type hoverboard_driver::read(
-      const rclcpp::Time &time, const rclcpp::Duration &period)
+      const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
   {
     // to be able to compare times, we need to set last_read time to a correct time source
     // set the actual time as last_read, when it hasn't been set before (first attempt to read from harware)
@@ -365,7 +365,7 @@ namespace hoverboard_driver
     return hardware_interface::return_type::OK;
   }
 
-  void hoverboard_driver::protocol_recv(const rclcpp::Time &time, char byte)
+  void hoverboard_driver::protocol_recv(const rclcpp::Time & time, char byte)
   {
     start_frame = ((uint16_t)(byte) << 8) | (uint8_t)prev_byte;
 
@@ -393,8 +393,8 @@ namespace hoverboard_driver
                                      msg.speedL_meas ^
                                      msg.wheelR_cnt ^
                                      msg.wheelL_cnt ^
-                                     msg.left_dc_curr ^
-                                     msg.right_dc_curr ^
+                                     //msg.left_dc_curr ^
+                                     //msg.right_dc_curr ^
                                      msg.batVoltage ^
                                      msg.boardTemp ^
                                      msg.cmdLed);
@@ -404,8 +404,8 @@ namespace hoverboard_driver
         hardware_publisher->publish_voltage((double)msg.batVoltage / 100.0);
         hardware_publisher->publish_temp((double)msg.boardTemp / 10.0);
         ;
-        hardware_publisher->publish_curr(left_wheel, (double)msg.left_dc_curr / 100.0);
-        hardware_publisher->publish_curr(right_wheel, (double)msg.right_dc_curr / 100.0);
+        //hardware_publisher->publish_curr(left_wheel, (double)msg.left_dc_curr / 100.0);
+        //hardware_publisher->publish_curr(right_wheel, (double)msg.right_dc_curr / 100.0);
 
         // Convert RPM to RAD/S
         hw_velocities_[left_wheel] = direction_correction * (abs(msg.speedL_meas) * 0.10472);
@@ -426,7 +426,7 @@ namespace hoverboard_driver
   }
 
   hardware_interface::return_type hoverboard_driver::hoverboard_driver::write(
-      const rclcpp::Time &time, const rclcpp::Duration &period)
+      const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
   {
     if (port_fd == -1)
     {
@@ -480,7 +480,7 @@ namespace hoverboard_driver
     return hardware_interface::return_type::OK;
   }
 
-  void hoverboard_driver::on_encoder_update(const rclcpp::Time &time, int16_t right, int16_t left)
+  void hoverboard_driver::on_encoder_update(const rclcpp::Time & time, int16_t right, int16_t left)
   {
     double posL = 0.0, posR = 0.0;
 
