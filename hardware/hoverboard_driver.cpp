@@ -393,8 +393,8 @@ namespace hoverboard_driver
                                      msg.speedL_meas ^
                                      msg.wheelR_cnt ^
                                      msg.wheelL_cnt ^
-                                     //msg.left_dc_curr ^
-                                     //msg.right_dc_curr ^
+                                     msg.left_dc_curr ^
+                                     msg.right_dc_curr ^
                                      msg.batVoltage ^
                                      msg.boardTemp ^
                                      msg.cmdLed);
@@ -404,8 +404,8 @@ namespace hoverboard_driver
         hardware_publisher->publish_voltage((double)msg.batVoltage / 100.0);
         hardware_publisher->publish_temp((double)msg.boardTemp / 10.0);
         ;
-        //hardware_publisher->publish_curr(left_wheel, (double)msg.left_dc_curr / 100.0);
-        //hardware_publisher->publish_curr(right_wheel, (double)msg.right_dc_curr / 100.0);
+        hardware_publisher->publish_curr(left_wheel, (double)msg.left_dc_curr / 100.0);
+        hardware_publisher->publish_curr(right_wheel, (double)msg.right_dc_curr / 100.0);
 
         // Convert RPM to RAD/S
         hw_velocities_[left_wheel] = direction_correction * (abs(msg.speedL_meas) * 0.10472);
