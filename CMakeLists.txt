@@ -69,6 +69,7 @@ install(TARGETS hoverboard_driver
 # Asenna Python-skriptit scripts-kansiosta
 install(PROGRAMS
   scripts/arduino_bridge.py
+  scripts/joy_to_arduino.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

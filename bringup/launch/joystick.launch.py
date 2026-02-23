@@ -31,7 +31,15 @@ def generate_launch_description():
             remappings=[('/cmd_vel','/hoverboard_base_controller/cmd_vel')]
          )
 
+    joy_to_arduino_node = Node(
+            package='hoverboard_driver',
+            executable='joy_to_arduino.py',
+            name='joy_to_arduino',
+            parameters=[joy_params] # Tämä on kriittinen: lukee arvot joystick.yaml:sta
+        )
+
     return LaunchDescription([
         joy_node,
-        teleop_node 
+        teleop_node,
+        joy_to_arduino_node
     ])
