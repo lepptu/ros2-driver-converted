@@ -66,6 +66,13 @@ install(TARGETS hoverboard_driver
   RUNTIME DESTINATION bin
 )
 
+# Asenna Python-skriptit scripts-kansiosta
+install(PROGRAMS
+  scripts/arduino_bridge.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 endif()

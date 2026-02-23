@@ -1,0 +1,9 @@
+arduino_bridge:
+  ros__parameters:
+    # Sarjaportin asetukset
+    port: "/dev/ttyUSB0"
+    baudrate: 115200
+    
+    # Kuinka usein ROS2 lähettää viestin Arduinolle (sekunteina)
+    # 0.1 tarkoittaa 10 kertaa sekunnissa (10 Hz)
+    publish_rate: 0.1
