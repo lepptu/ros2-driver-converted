@@ -167,11 +167,14 @@ namespace hoverboard_driver
   }
 
   hardware_interface::CallbackReturn hoverboard_driver::on_init(
-      const hardware_interface::HardwareInfo &info)
+      const hardware_interface::HardwareComponentInterfaceParams & info)
+      //const hardware_interface::HardwareInfo &info)
   {
-    if (
-        hardware_interface::SystemInterface::on_init(info) !=
-        hardware_interface::CallbackReturn::SUCCESS)
+    //if (
+    //    hardware_interface::SystemInterface::on_init(info) !=
+    //    hardware_interface::CallbackReturn::SUCCESS)
+    //{
+    if (hardware_interface::HardwareComponentInterface::on_init(info) != hardware_interface::CallbackReturn::SUCCESS)
     {
       return hardware_interface::CallbackReturn::ERROR;
     }
@@ -426,7 +429,7 @@ namespace hoverboard_driver
   }
 
   hardware_interface::return_type hoverboard_driver::hoverboard_driver::write(
-      const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
+      const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
   {
     if (port_fd == -1)
     {
@@ -448,9 +451,9 @@ namespace hoverboard_driver
                           hardware_publisher->pid_config.antiwindup);
 
     // calculate PID values
-    double pid_outputs[2];
-    pid_outputs[0] = pids[0](hw_velocities_[left_wheel], hw_commands_[left_wheel], period);
-    pid_outputs[1] = pids[1](hw_velocities_[left_wheel], hw_commands_[right_wheel], period);
+    //double pid_outputs[2];
+    //pid_outputs[0] = pids[0](hw_velocities_[left_wheel], hw_commands_[left_wheel], period);
+    //pid_outputs[1] = pids[1](hw_velocities_[left_wheel], hw_commands_[right_wheel], period);
 
     // Convert PID outputs in RAD/S to RPM
     //double set_speed[2] = {

@@ -1,5 +1,7 @@
 // Based on work by Franz Pucher, Diffbot, (2020), GitHub repository, https://github.com/fjp/diffbot
 #include "hoverboard_driver/pid.hpp"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 PID::PID(double p, double i, double d, double i_max, double i_min, bool antiwindup, double out_max, double out_min)
     : control_toolbox::Pid()
@@ -105,3 +107,4 @@ double PID::clamp(const double& value, const double& lower_limit, const double& 
     }
     return value;
 }
+#pragma GCC diagnostic pop

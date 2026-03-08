@@ -126,7 +126,8 @@ namespace hoverboard_driver
     RCLCPP_SHARED_PTR_DEFINITIONS(hoverboard_driver);
 
     hardware_interface::CallbackReturn on_init(
-        const hardware_interface::HardwareInfo &info) override;
+        const hardware_interface::HardwareComponentInterfaceParams & info) override;
+        //const hardware_interface::HardwareInfo &info) override;
 
     std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
 
