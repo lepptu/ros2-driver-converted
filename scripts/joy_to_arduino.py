@@ -3,47 +3,97 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Bool, Int32
+from rcl_interfaces.msg import SetParametersResult # Tarvitaan callbackia varten
 
 class JoyToArduino(Node):
     def __init__(self):
         super().__init__('joy_to_arduino')
         
         # Ladataan parametrit yaml-tiedostosta
-        self.declare_parameter('action_button', 13)
-        self.declare_parameter('motor_speed_value', 100)
+        #self.declare_parameter('action_button', 13)
+        #self.declare_parameter('motor_speed_value', 100)
+        self.declare_parameter('mowEnable_button', 13)
+        self.declare_parameter('mowRpmSET_value', 100)
+        self.declare_parameter('hoverBtnR1_button', 7)
+        self.declare_parameter('varaReleR2_button', 6)
 
         # Haetaan arvot (esim. action_button = 3)
-        self.btn_idx = self.get_parameter('action_button').value
-        self.speed_val = self.get_parameter('motor_speed_value').value
+        #self.btn_idx = self.get_parameter('action_button').value
+        #self.speed_val = self.get_parameter('motor_speed_value').value
+        self.mowEnable_idx = self.get_parameter('mowEnable_button').value
+        self.mowRpmSET_val = self.get_parameter('mowRpmSET_value').value
+        self.hoverBtnR1_idx = self.get_parameter('hoverBtnR1_button').value
+        self.varaReleR2_idx = self.get_parameter('varaReleR2_button').value
+
+        self.add_on_set_parameters_callback(self.parameter_callback)
 
         # Julkaisijat
-        self.rele1_pub = self.create_publisher(Bool, 'rele1_cmd', 10)
-        self.rele2_pub = self.create_publisher(Bool, 'rele2_cmd', 10)
-        self.pwm_pub = self.create_publisher(Int32, 'motor_pwm_cmd', 10)
+        #self.rele1_pub = self.create_publisher(Bool, 'rele1_cmd', 10)
+        #self.rele2_pub = self.create_publisher(Bool, 'rele2_cmd', 10)
+        #self.pwm_pub = self.create_publisher(Int32, 'motor_pwm_cmd', 10)
+        self.mowMotorEN_pub = self.create_publisher(Bool, 'mowMotorEN_cmd', 10)
+        self.mowMotorRpmSET_pub = self.create_publisher(Int32, 'mowMotorRPM_set_cmd', 10)
+        self.hoverBtnR1_pub = self.create_publisher(Bool, 'hoverBtnR1_cmd', 10)
+        self.varaReleR2_pub = self.create_publisher(Bool, 'varaReleR2_cmd', 10)
 
         # Tilaaja ohjaimen raakadatalle (/joy)
         self.subscription = self.create_subscription(Joy, 'joy', self.joy_callback, 10)
         
-        self.get_logger().info(f"Kuunnellaan /joy topicia. Nappi indeksissä {self.btn_idx} aktivoi järjestelmän.")
+        self.get_logger().info(f"Kuunnellaan /joy topicia. Nappi indeksissä {self.mowEnable_idx} aktivoi leikkausmoottorin.")
+
+    def parameter_callback(self, params):
+        """Tätä kutsutaan automaattisesti, kun parametreja muutetaan."""
+        for param in params:
+            if param.name == 'mowEnable_button':
+                self.mowEnable_idx = param.value
+                self.get_logger().info(f"Päivitetty mowEnable_button: {param.value}")
+            
+            elif param.name == 'mowRpmSET_value':
+                self.mowRpmSET_val = param.value
+                self.get_logger().info(f"Päivitetty mowRpmSET_value: {param.value}")
+            
+            elif param.name == 'hoverBtnR1_button':
+                self.hoverBtnR1_idx = param.value
+                self.get_logger().info(f"Päivitetty hoverBtnR1_button: {param.value}")
+            
+            elif param.name == 'varaReleR2_button':
+                self.varaReleR2_idx = param.value
+                self.get_logger().info(f"Päivitetty varaReleR2_button: {param.value}")
+        
+        return SetParametersResult(successful=True)
+
 
     def joy_callback(self, msg):
         # Varmistetaan ensin, että taulukossa on tarpeeksi alkioita, jottei ohjelma kaadu
-        if len(msg.buttons) > self.btn_idx:
-            
+        #if len(msg.buttons) > self.btn_idx:
+        if len(msg.buttons) > self.mowEnable_idx:
+
             # msg.buttons[3] lukee taulukon 4. arvon. Jos se on 1, is_pressed = True
-            is_pressed = (msg.buttons[self.btn_idx] == 1)
+            mowEn_is_pressed = (msg.buttons[self.mowEnable_idx] == 1)
+            hoverBtnR1_is_pressed = (msg.buttons[self.hoverBtnR1_idx] == 1)
+            varaReleR2_is_pressed = (msg.buttons[self.varaReleR2_idx] == 1)
 
             # Valmistellaan viestit
-            r_msg = Bool()
-            r_msg.data = is_pressed  # True jos painettu, False jos vapautettu
+            mowEn_msg = Bool()
+            mowEn_msg.data = mowEn_is_pressed  # True jos painettu, False jos vapautettu
             
-            p_msg = Int32()
-            p_msg.data = self.speed_val if is_pressed else 0 # 100 jos painettu, 0 jos vapautettu
+            mowRpm_msg = Int32()
+            mowRpm_msg.data = self.mowRpmSET_val if mowEn_is_pressed else 0 # 100 jos painettu, 0 jos vapautettu
+
+            hoverBtnR1_msg = Bool()
+            hoverBtnR1_msg.data = hoverBtnR1_is_pressed
+
+            varaReleR2_msg = Bool()
+            varaReleR2_msg.data = varaReleR2_is_pressed
 
             # Julkaistaan viestit ROS2-verkkoon
-            self.rele1_pub.publish(r_msg)
-            self.rele2_pub.publish(r_msg)
-            self.pwm_pub.publish(p_msg)
+            #self.rele1_pub.publish(r_msg)
+            #self.rele2_pub.publish(r_msg)
+            #self.pwm_pub.publish(p_msg)
+            self.mowMotorEN_pub.publish(mowEn_msg)
+            self.mowMotorRpmSET_pub.publish(mowRpm_msg)
+            self.hoverBtnR1_pub.publish(hoverBtnR1_msg)
+            self.varaReleR2_pub.publish(varaReleR2_msg)
 
 def main(args=None):
     rclpy.init(args=args)

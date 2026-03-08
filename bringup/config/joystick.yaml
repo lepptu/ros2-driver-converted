@@ -29,5 +29,9 @@ teleop_node:
 
 joy_to_arduino:
   ros__parameters:
-    action_button: 13       # Nappi, joka aktivoi kaiken
-    motor_speed_value: 40 # PWM-arvo, joka lähetetään
+    #action_button: 13       # Nappi, joka aktivoi kaiken
+    #motor_speed_value: 40 # PWM-arvo, joka lähetetään
+    mowEnable_button: 13
+    mowRpmSET_value: 2200
+    hoverBtnR1_button: 7
+    varaReleR2_button: 6
