@@ -52,7 +52,7 @@ install(
   DESTINATION include/hoverboard_driver 
 )
 install(
-  DIRECTORY description/launch description/ros2_control description/urdf
+  DIRECTORY description/launch description/ros2_control description/urdf description/meshes
   DESTINATION share/hoverboard_driver 
 )
 install(
