@@ -5,10 +5,10 @@
 
   <link name="${prefix}base_link">
     <inertial>
-      <origin xyz="0.18789605284929195 0.0 0.1382956611517429" rpy="0 0 0"/>
-      <mass value="36.30754966612175"/>
-      <inertia ixx="0.506671" iyy="1.080663" izz="1.439708" ixy="-0.0" iyz="0.0" ixz="0.031283"/>
-    </inertial>
+      <origin xyz="0.1868283906560058 -8.473062492372848e-18 0.13904584968795905" rpy="0 0 0"/>
+      <mass value="36.40957482835499"/>
+      <inertia ixx="0.50646" iyy="1.081484" izz="1.438296" ixy="-0.0" iyz="0.0" ixz="0.031938"/>
+  </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
@@ -23,12 +23,14 @@
       </geometry>
     </collision>
   </link>
+
+
   <link name="${prefix}right_wheel">
     <inertial>
-      <origin xyz="-1.1074098332670195e-17 -0.02749999999999997 0.0" rpy="0 0 0"/>
+      <origin xyz="0.0 -0.02749999999999997 0.0" rpy="0 0 0"/>
       <mass value="1.5275827380970637"/>
-      <inertia ixx="0.004015" iyy="0.007261" izz="0.004015" ixy="-0.0" iyz="0.0" ixz="-0.0"/>
-    </inertial>
+      <inertia ixx="0.004015" iyy="0.007261" izz="0.004015" ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
     <visual>
       <origin xyz="-0.0 0.165 -0.0975" rpy="0 0 0"/>
       <geometry>
@@ -43,6 +45,8 @@
       </geometry>
     </collision>
   </link>
+
+
   <link name="${prefix}left_wheel">
     <inertial>
       <origin xyz="2.2148196665340383e-17 0.027499999999999997 1.3877787807814457e-17" rpy="0 0 0"/>
@@ -63,18 +67,144 @@
       </geometry>
     </collision>
   </link>
+
+
+  <link name="${prefix}lidar">
+    <inertial>
+      <origin xyz="6.938893903907228e-18 0.0 0.007500000000000062" rpy="0 0 0"/>
+      <mass value="0.026012387171723484"/>
+      <inertia ixx="3e-06" iyy="3e-06" izz="5e-06" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.051 -0.0 -0.2645" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/lidar.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <origin xyz="-0.051 -0.0 -0.2645" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/lidar.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+
+  <link name="${prefix}camera">
+    <inertial>
+      <origin xyz="0.0030000000000000165 4.440892098500626e-18 -2.7755575615628914e-17" rpy="0 0 0"/>
+      <mass value="0.0051749999999999964"/>
+      <inertia ixx="1e-06" iyy="0.0" izz="0.0" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.086 -0.0 -0.248" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/camera.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <origin xyz="-0.086 -0.0 -0.248" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/camera.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="${prefix}camera_optical"></link>
+
+  <link name="${prefix}caster_wheel_right">
+    <inertial>
+      <origin xyz="-3.4701079232313248e-09 -5.551115123125783e-17 -0.009375003732038686" rpy="0 0 0"/>
+      <mass value="0.030434215177785065"/>
+      <inertia ixx="5e-06" iyy="5e-06" izz="8e-06" ixy="-0.0" iyz="0.0" ixz="-0.0"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.41 0.136 -0.025" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/caster_wheel_right.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="-0.41 0.136 -0.025" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/caster_wheel_right.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="${prefix}caster_wheel_left">
+    <inertial>
+      <origin xyz="-3.4701078122090223e-09 2.7755575615628914e-17 -0.009375000000000001" rpy="0 0 0"/>
+      <mass value="0.030434178831651098"/>
+      <inertia ixx="5e-06" iyy="5e-06" izz="8e-06" ixy="0.0" iyz="-0.0" ixz="-0.0"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.41 -0.136 -0.025" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/caster_wheel_left.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="black"/>
+    </visual>
+    <collision>
+      <origin xyz="-0.41 -0.136 -0.025" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/caster_wheel_left.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
+
+
+
   <joint name="${prefix}right_wheel_joint" type="continuous">
     <origin xyz="0.0 -0.165 0.0975" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child link="right_wheel"/>
     <axis xyz="0.0 -1.0 0.0"/>
   </joint>
+
   <joint name="${prefix}left_wheel_joint" type="continuous">
     <origin xyz="0.0 0.165 0.0975" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child link="left_wheel"/>
     <axis xyz="0.0 1.0 0.0"/>
   </joint>
+
+  <joint name="${prefix}lidar_joint" type="fixed">
+    <origin xyz="0.051 0.0 0.2645" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="lidar"/>
+  </joint>
+
+  <joint name="${prefix}camera_joint" type="fixed">
+    <origin xyz="0.086 0.0 0.248" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="camera"/>
+  </joint>
+
+  <joint name="${prefix}camera_optical_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+    <parent link="camera"/>
+    <child link="camera_optical"/>
+  </joint>
+
+
+  <joint name="${prefix}caster_wheel_right_joint" type="fixed">
+    <origin xyz="0.41 -0.136 0.025" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="caster_wheel_right"/>
+  </joint>
+
+  <joint name="${prefix}caster_wheel_left_joint" type="fixed">
+    <origin xyz="0.41 0.136 0.025" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="caster_wheel_left"/>
+  </joint>
+
+
 
   </xacro:macro>
 
