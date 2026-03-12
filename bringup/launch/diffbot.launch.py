@@ -21,6 +21,10 @@ from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, 
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
+#lidarin lisäys
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+
 
 def generate_launch_description():
     # Declare arguments
@@ -111,12 +115,44 @@ def generate_launch_description():
         )
     )
 
+# Lidarin lisäys
+    lidar_node = Node(
+        package='ldlidar_stl_ros2',
+        executable='ldlidar_stl_ros2_node',
+        name='LD06',
+        output='screen',
+        parameters=[
+            {'product_name': 'LDLiDAR_LD06'},
+            {'topic_name': 'scan'},
+            {'frame_id': 'lidar'},           # Vastaa URDF-mallisi linkkiä
+            {'port_name': '/dev/ttyAMA4'},   # Sinun toimivaksi toteama portti
+            {'port_baudrate': 230400},
+            {'laser_scan_dir': True},        # True = Vastapäivään (Counterclockwise)
+            {'enable_angle_crop_func': False}
+        ]
+    )
+
+#    lidar_node = IncludeLaunchDescription(
+#        PythonLaunchDescriptionSource([
+#            PathJoinSubstitution([
+#                FindPackageShare("ldlidar_stl_ros2"),
+#                "launch",
+#                "ld06.launch.py"
+#            ])
+#        ]),
+#        launch_arguments={
+#            'serial_port': '/dev/ttyAMA4',  # <-- Tässä ohjataan Lidar lukemaan UART4:a
+#            'lidar_frame': 'lidar'          # Vastaa suoraan URDF-koodissasi olevaa nimeä
+#        }.items()
+#    )
+
     nodes = [
         control_node,
         robot_state_pub_node,
         joint_state_broadcaster_spawner,
        # delay_rviz_after_joint_state_broadcaster_spawner,
         delay_robot_controller_spawner_after_joint_state_broadcaster_spawner,
+        lidar_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes)
