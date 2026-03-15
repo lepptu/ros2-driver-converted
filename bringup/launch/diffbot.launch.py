@@ -132,19 +132,45 @@ def generate_launch_description():
         ]
     )
 
-#    lidar_node = IncludeLaunchDescription(
-#        PythonLaunchDescriptionSource([
-#            PathJoinSubstitution([
-#                FindPackageShare("ldlidar_stl_ros2"),
-#                "launch",
-#                "ld06.launch.py"
-#            ])
-#        ]),
-#        launch_arguments={
-#            'serial_port': '/dev/ttyAMA4',  # <-- Tässä ohjataan Lidar lukemaan UART4:a
-#            'lidar_frame': 'lidar'          # Vastaa suoraan URDF-koodissasi olevaa nimeä
-#        }.items()
-#    )
+# IMUn lisäys
+    imu_node = Node(
+        package='bno08x_driver',
+        executable='bno08x_driver', # Suoritettavan tiedoston nimi ajuripaketissa
+        name='bno08x_node',
+        output='screen',
+        parameters=[{
+            'frame_id': 'imu_link',   # Vastaa URDF-mallisi linkkiä
+            'i2c': {
+                'enabled': True,
+                'bus': '/dev/i2c-1',
+                'address': '0x4A'
+            },
+            'publish': {
+                'magnetic_field': {
+                    'enabled': True,
+                    'rate': 100
+                },
+                'imu': {
+                    'enabled': True,
+                    'rate': 100,
+                    'orientation_yaw_variance': 0.005  # 5e-3 = 0.005 is default
+                }
+            }
+        }]
+    )
+
+    ekf_config_path = PathJoinSubstitution(
+        [FindPackageShare("hoverboard_driver"), "config", "ekf.yaml"]
+    )
+
+    ekf_node = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node',
+        output='screen',
+        parameters=[ekf_config_path]
+    )
+
 
     nodes = [
         control_node,
@@ -153,6 +179,8 @@ def generate_launch_description():
        # delay_rviz_after_joint_state_broadcaster_spawner,
         delay_robot_controller_spawner_after_joint_state_broadcaster_spawner,
         lidar_node,
+        imu_node,
+        ekf_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes)
