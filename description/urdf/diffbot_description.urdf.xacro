@@ -177,6 +177,27 @@
     </collision>
   </link>
 
+  <link name="${prefix}gps_link">
+    <inertial>
+      <origin xyz="4.619359950108759e-09 0.0 0.009999999999999981" rpy="0 0 0"/>
+      <mass value="0.09108000271439554"/>
+      <inertia ixx="3e-05" iyy="2.6e-05" izz="5e-05" ixy="-0.0" iyz="-0.0" ixz="0.0"/>
+    </inertial>
+    <visual>
+      <origin xyz="-0.31 -0.0 -0.165" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/gps_link.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+      <material name="blue"/>
+    </visual>
+    <collision>
+      <origin xyz="-0.31 -0.0 -0.165" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://hoverboard_driver/meshes/gps_link.stl" scale="0.001 0.001 0.001"/>
+      </geometry>
+    </collision>
+  </link>
+
 
 
 
@@ -230,6 +251,13 @@
     <parent link="base_link"/>
     <child link="imu_link"/>
   </joint>
+
+  <joint name="${prefix}gps_joint" type="fixed">
+    <origin xyz="0.31 0.0 0.165" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="gps_link"/>
+  </joint>
+
 
 <!-- BASE_FOOTPRINT -->
 
