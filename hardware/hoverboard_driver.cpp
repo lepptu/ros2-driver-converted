@@ -182,8 +182,10 @@ namespace hoverboard_driver
     wheel_radius = std::stod(info_.hardware_parameters["wheel_radius"]);
     max_velocity = std::stod(info_.hardware_parameters["max_velocity"]);
     port = info_.hardware_parameters["device"];
-    hw_positions_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
-    hw_velocities_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+    //hw_positions_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+    //hw_velocities_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+    hw_positions_.resize(info_.joints.size(), 0.0);
+    hw_velocities_.resize(info_.joints.size(), 0.0);
     hw_commands_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
 
     for (const hardware_interface::ComponentInfo &joint : info_.joints)

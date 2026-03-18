@@ -70,6 +70,7 @@ install(TARGETS hoverboard_driver
 install(PROGRAMS
   scripts/arduino_bridge.py
   scripts/joy_to_arduino.py
+  scripts/record_boundary.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

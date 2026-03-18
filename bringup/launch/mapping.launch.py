@@ -32,13 +32,13 @@ def generate_launch_description():
     ld.add_action(DeclareLaunchArgument(
         'use_sim_time',
         default_value='false',
-        description='Käytä simulaatioaikaa jos totta'
+        description='Use simulation time if true'
     ))
     
     ld.add_action(DeclareLaunchArgument(
         'params_file',
         default_value=default_params_file,
-        description='Koko polku SLAM-parametritiedostoon'
+        description='Full path to SLAM parameter file'
     ))
     
     ld.add_action(start_slam_toolbox_cmd)

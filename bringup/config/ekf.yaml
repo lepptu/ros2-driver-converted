@@ -75,15 +75,6 @@ ekf_filter_node:
 
 
 
-
-
-
-
-
-
-
-
-
     # Nostetaan IMU:n epävarmuutta (esimerkkilukuja, kokeile näitä)
     # [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
     #initial_estimate_covariance: [1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 1e-9, 
@@ -107,3 +98,131 @@ ekf_filter_node:
     #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0,
     #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0,
     #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3]
+
+
+
+
+ekf_global_node:
+  ros__parameters:
+    # Julkaiseeko tämä solmu TF-muunnoksia. Asetettu 'true', koska globaalin 
+    # EKF:n tehtävä on nimenomaan julkaista 'map -> odom' -muunnos.
+
+    publish_tf: true
+
+    # Kuinka usein suodatin laskee ja julkaisee uuden sijainnin (Hz). 
+    # 30.0 Hz on hyvä tasapaino tarkkuuden ja prosessorikuorman välillä ruohonleikkurille.  
+    frequency: 30.0
+
+    # Aika (sekunteina), jonka jälkeen anturin tiedon katsotaan vanhentuneen.
+    # 0.1s tarkoittaa, että jos sensorilta ei tule tietoa 100ms sisällä, se jätetään huomiotta.
+    sensor_timeout: 0.1
+
+    # Ennustaa robotin tilan nykyhetkeen, vaikka anturidata tulisi pienellä viiveellä.
+    # 'true' tekee TF-puusta sujuvamman ja vähentää navigoinnin viiveitä.
+    predict_to_current_time: true
+
+    # Toimiiko suodatin 2D-tilassa. Asetettu 'true', koska robottiruohonleikkuri 
+    # pysyy maan pinnalla. Tämä pakottaa korkeuden (Z) sekä kallistukset (roll, pitch) nollaan, 
+    # mikä estää sijaintiarvion ryömimisen "maan sisään" tai "taivaalle".
+    two_d_mode: true
+
+    # Aika-asetuksia, joilla voidaan kompensoida TF-viiveitä. 
+    # 0.0 on paras oletusarvo, olettaen että järjestelmän aika (Raspberry Pi) on synkronoitu.
+    transform_time_offset: 0.0
+    transform_timeout: 0.0
+
+    # Diagnostiikan tulostus auttaa huomaamaan virheet anturidatassa (esim. timestampit heittävät).
+    print_diagnostics: true
+    # Debug-tulostus on pois päältä ('false'), jotta lokitiedostot eivät täyty valtavasta määrästä dataa.
+    debug: false
+
+    # Määritellään standardin mukaiset TF-kehykset.
+    map_frame: map
+    odom_frame: odom
+    base_link_frame: base_link
+
+    # Tämä parametri on ratkaiseva: se kertoo EKF:lle, mikä on maailman "absoluuttinen" kiintopiste.
+    # Koska tämä on globaali EKF (joka käyttää GPS:ää), maailmankehys on 'map'.
+    # (Paikallisessa EKF:ssä, jossa ei ole GPS:ää, tämä olisi 'odom').
+    world_frame: map
+
+    # --- Pyöräodometria (Odom0) ---
+    # Odom ja IMU (Samat kuin paikallisessa EKF:ssä)
+    odom0: /hoverboard_base_controller/odom
+    # Matriisi [x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    # Asetettu 'true' arvoille vx, vy (eteen/sivu-nopeus) ja vyaw (kääntymisnopeus).
+    # Miksi emme ota X, Y, Yaw sijaintia suoraan odometriasta? Koska pyöräodometria alkaa 
+    # aina lipsua ja kerätä virhettä (drift). EKF pystyy päättelemään sijainnin tarkemmin 
+    # integroimalla näitä *nopeuksia* ja yhdistämällä ne GPS:n sijaintiin.
+    odom0_config: [false, false, false,
+                   false, false, false,
+                   true, true, false,
+                   false, false, true,
+                   false, false, false]
+    odom0_queue_size: 10
+    
+    # --- IMU (Imu0) ---
+    imu0: /imu
+    # Asetettu 'true' arvoille roll, pitch, yaw (asento) ja vyaw (kääntymisnopeus).
+    # IMU on erinomainen laite kertomaan, mihin suuntaan robotti katsoo ja kuinka nopeasti se kääntyy.
+    # Se kompensoi pyörien sutimista käännöksissä.
+    imu0_config: [false, false, false,
+                  true, true, true,
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
+    imu0_queue_size: 10
+    # Poistetaan painovoiman vaikutus kiihtyvyysanturilta, jotta se ei sekoita lineaarikiihtyvyyden laskentaa.
+    imu0_remove_gravitational_acceleration: true
+
+    # --- GPS Odometria (Odom1, tulee navsat_transformilta) ---
+    odom1: /odometry/gps
+    # Asetettu 'true' arvoille X ja Y.
+    # GPS antaa maailmanluokan tarkkuudella (RTK) absoluuttisen paikan maailmassa (X ja Y metrinä).
+    # Emme kuitenkaan ota GPS:ltä suuntaa (yaw) emmekä nopeuksia, koska tavallinen 
+    # RTK-GPS voi olla epätarkka hitaissa nopeuksissa ja paikoillaan pyöriessä.
+    # Sijainti (GPS) + Suunta (IMU) + Liike (Odometria) on täydellinen yhdistelmä.
+    odom1_config: [true,  true,  false, 
+                   false, false, false,
+                   false, false, false, 
+                   false, false, false,
+                   false, false, false]
+    odom1_queue_size: 10
+
+navsat_transform:
+  ros__parameters:
+    # Kuinka usein GPS-koordinaatit muunnetaan metrisiksi X/Y-koordinaateiksi.
+    frequency: 30.0
+    delay: 0.0
+
+    # Magneettinen deklinaatio korjaa eron "magneettisen pohjoisnavan" (jota kompassi/IMU katsoo)
+    # ja "maantieteellisen pohjoisnavan" (jota GPS käyttää) välillä.
+    # Ruokolahdella ero on n. +11.8 astetta, eli 0.206 radiaania. Tämä on elintärkeä asetus, 
+    # jotta IMUn antama suunta saadaan täsmäämään GPS-suuntiman kanssa.
+    magnetic_declination_radians: 0.206
+
+    # Jos IMU on fyysisesti asennettu robottiin niin, että sen "nolla" (yleensä X-akseli) 
+    # ei osoita suoraan eteenpäin, tässä voidaan kertoa poikkeama. 0.0 tarkoittaa suoraa asennusta.
+    yaw_offset: 0.6458
+
+    # Pakottaa GPS-korkeusdatan nollaan. 'true', koska kyseessä on robottiruohonleikkuri, 
+    # emmekä halua GPS-korkeusheittelyiden vaikuttavan reittisuunnitteluun.
+    zero_altitude: true
+
+    # Julkaiseeko navsat_transform TF-muunnoksen suoraan (map -> odom).
+    # Asetettu 'false', koska olemme asettaneet ekf_global_node:n (yllä) tekemään tämän julkaisun.
+    # Jos tämä olisi true, kaksi eri noodia riitelisi TF-puun hallinnasta.
+    broadcast_cartesian_transform: false
+
+    # Julkaisee topicin (/gps/filtered), jossa on tasattu ja suodatettu GPS-sijainti.
+    # Hyödyllinen esimerkiksi robotin piirtämisessä web-käyttöliittymän kartalle.
+    publish_filtered_gps: true
+
+    # Käytetäänkö EKF:n laskemaa yaw-kulmaa (suuntaa) apuna GPS-muunnoksessa. 
+    # 'false' on usein turvallisempi vaihtoehto perusajossa, jotta robotti luottaa ensisijaisesti IMUun suunnan määrityksessä.
+    use_odometry_yaw: false
+
+    # Odotetaanko, että käyttäjä antaa "aloituspisteen" (datum) erikseen?
+    # 'false' tarkoittaa, että järjestelmä ottaa ensimmäisen luotettavan GPS-pisteen, 
+    # ja asettaa sen automaattisesti kartan origoksi (X=0, Y=0). Erittäin kätevää automaattisessa käynnistyksessä.
+    wait_for_datum: false
