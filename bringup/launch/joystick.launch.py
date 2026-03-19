@@ -27,7 +27,7 @@ def generate_launch_description():
             package='teleop_twist_joy',
             executable='teleop_node',
             name='teleop_node',
-            parameters=[joy_params],
+            parameters=[joy_params, {'publish_stamped_twist': True}],
             remappings=[('/cmd_vel','/hoverboard_base_controller/cmd_vel')]
          )
 

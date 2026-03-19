@@ -1,6 +1,6 @@
 controller_manager:
   ros__parameters:
-    update_rate: 50  # Hz
+    update_rate: 15 #30  # Hz
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -21,7 +21,7 @@ hoverboard_base_controller:
     left_wheel_radius_multiplier: 0.9
     right_wheel_radius_multiplier: 0.9
 
-    publish_rate: 50.0
+    publish_rate: 30.0
     odom_frame_id: odom
     base_frame_id: base_link
     pose_covariance_diagonal : [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
@@ -33,7 +33,7 @@ hoverboard_base_controller:
 
     cmd_vel_timeout: 0.5
     #publish_limited_velocity: true
-    use_stamped_vel: false
+    use_stamped_vel: true #false
     #velocity_rolling_window_size: 10
 
     # Velocity and acceleration limits

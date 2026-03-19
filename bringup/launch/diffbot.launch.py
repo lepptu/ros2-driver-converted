@@ -74,9 +74,9 @@ def generate_launch_description():
         executable="robot_state_publisher",
         output="both",
         parameters=[robot_description],
-        remappings=[
-            ("/hoverboard_base_controller/cmd_vel_unstamped", "/cmd_vel"),
-        ],
+        #remappings=[
+        #    ("/hoverboard_base_controller/cmd_vel_unstamped", "/cmd_vel"),
+        #],
     )
     #rviz_node = Node(
     #    package="rviz2",
@@ -148,11 +148,11 @@ def generate_launch_description():
             'publish': {
                 'magnetic_field': {
                     'enabled': True,
-                    'rate': 100
+                    'rate': 50
                 },
                 'imu': {
                     'enabled': True,
-                    'rate': 100,
+                    'rate': 50,
                     'orientation_yaw_variance': 0.005  # 5e-3 = 0.005 is default
                 }
             }
