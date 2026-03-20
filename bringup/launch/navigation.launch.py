@@ -23,6 +23,7 @@ def generate_launch_description():
         launch_arguments={
             'use_sim_time': 'False',
             'params_file': nav2_params_path,
+            'use_composition': 'True',
         }.items()
         
     )

@@ -111,7 +111,7 @@ ekf_global_node:
 
     # Kuinka usein suodatin laskee ja julkaisee uuden sijainnin (Hz). 
     # 30.0 Hz on hyvä tasapaino tarkkuuden ja prosessorikuorman välillä ruohonleikkurille.  
-    frequency: 30.0
+    frequency: 20.0 #30.0
 
     # Aika (sekunteina), jonka jälkeen anturin tiedon katsotaan vanhentuneen.
     # 0.1s tarkoittaa, että jos sensorilta ei tule tietoa 100ms sisällä, se jätetään huomiotta.
