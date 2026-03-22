@@ -1,6 +1,6 @@
 controller_manager:
   ros__parameters:
-    update_rate: 20 #30  50 # Hz
+    update_rate: 50 #30  50 # Hz
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -18,20 +18,22 @@ hoverboard_base_controller:
     wheel_radius: 0.0975
 
     wheel_separation_multiplier: 1.0
-    left_wheel_radius_multiplier: 0.9
-    right_wheel_radius_multiplier: 0.9
+    left_wheel_radius_multiplier: 1.0 #0.9
+    right_wheel_radius_multiplier: 1.0 #0.9
 
-    publish_rate: 20.0
+    publish_rate: 50.0
     odom_frame_id: odom
     base_frame_id: base_link
-    pose_covariance_diagonal : [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
-    twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+    pose_covariance_diagonal : [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 1000.0]
+    twist_covariance_diagonal: [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 1000.0]
+    #pose_covariance_diagonal : [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+    #twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
 
     open_loop: false
     position_feedback: true
     enable_odom_tf: false
 
-    cmd_vel_timeout: 0.5
+    cmd_vel_timeout: 1.5 #0.5
     #publish_limited_velocity: true
     use_stamped_vel: true #false
     #velocity_rolling_window_size: 10
@@ -50,9 +52,9 @@ hoverboard_base_controller:
     angular.z.has_velocity_limits: true
     angular.z.has_acceleration_limits: true
     angular.z.has_jerk_limits: false
-    angular.z.max_velocity: 1.0
-    angular.z.min_velocity: -1.0
-    angular.z.max_acceleration: 1.0
-    angular.z.min_acceleration: -1.0
-    angular.z.max_jerk: 0.0
-    angular.z.min_jerk: 0.0
+    angular.z.max_velocity: 6.28
+    angular.z.min_velocity: -6.28
+    angular.z.max_acceleration: 3.14
+    angular.z.min_acceleration: -3.14
+    angular.z.max_jerk: 3.14
+    angular.z.min_jerk: -3.14

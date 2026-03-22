@@ -148,11 +148,11 @@ def generate_launch_description():
             'publish': {
                 'magnetic_field': {
                     'enabled': True,
-                    'rate': 50
+                    'rate': 100
                 },
                 'imu': {
                     'enabled': True,
-                    'rate': 50,
+                    'rate': 100,
                     'orientation_yaw_variance': 0.005  # 5e-3 = 0.005 is default
                 }
             }
@@ -171,6 +171,18 @@ def generate_launch_description():
         parameters=[ekf_config_path]
     )
 
+    # TWIST_MUX (Liikennepoliisi) lisäys
+    twist_mux_params = PathJoinSubstitution(
+        [FindPackageShare("hoverboard_driver"), "config", "twist_mux.yaml"]
+    )
+
+    twist_mux_node = Node(
+        package="twist_mux",
+        executable="twist_mux",
+        name="twist_mux",
+        parameters=[twist_mux_params],
+        remappings=[('/cmd_vel_out', '/hoverboard_base_controller/cmd_vel')]
+    )
 
     nodes = [
         control_node,
@@ -181,6 +193,7 @@ def generate_launch_description():
         lidar_node,
         imu_node,
         ekf_node,
+        twist_mux_node,
     ]
 
     return LaunchDescription(declared_arguments + nodes)

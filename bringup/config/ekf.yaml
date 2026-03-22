@@ -1,7 +1,7 @@
 ekf_filter_node:
   ros__parameters:
     publish_tf: true  
-    frequency: 10.0
+    frequency: 30.0
     sensor_timeout: 0.1
     predict_to_current_time: true
     two_d_mode: true  # Koska robotti liikkuu tasamaalla
@@ -19,8 +19,8 @@ ekf_filter_node:
     odom0: /hoverboard_base_controller/odom
     odom0_config: [false, false, false,
                    false, false, false,
-                   true,  true, false, # X-nopeus
-                   false, false, true, # Z-kulmanopeus
+                   true,  false, false, # X-nopeus
+                   false, false, false, # Z-kulmanopeus
                    false, false, false]
 
         #        [x_pos   , y_pos    , z_pos,
@@ -37,10 +37,15 @@ ekf_filter_node:
     # 2. IMU-data (tarkista oikea topic, johon BNO085 julkaisee)
     imu0: /imu
     imu0_config: [false, false, false,
-                  true, true, true,  
+                  false, false, true, 
                   false, false, false,
-                  false, false, true,  
-                  false, false, false]
+                  false, false, true,  # <--- Z-kääntymisnopeus (vyaw) pidetään päällä!
+                  false, false, false] # <--- X-kiihtyvyys (ax) EHDOTTOMASTI POIS PÄÄLTÄ!
+    #imu0_config: [false, false, false,
+    #              true, true, true,  
+    #              false, false, false,
+    #              false, false, true,  
+    #              false, false, false]
 
         #        [x_pos   , y_pos    , z_pos,
         #         roll    , pitch    , yaw,
@@ -49,7 +54,7 @@ ekf_filter_node:
         #         x_accel , y_accel  , z_accel]
 
     #imu0_nodelay: true
-    imu0_relative: false
+    imu0_relative: true
     imu0_remove_gravitational_acceleration: true
     imu0_queue_size: 10
     imu0_differential: false
@@ -57,13 +62,13 @@ ekf_filter_node:
     #imu0_pose_rejection_threshold: 2.5
     #imu0_twist_rejection_threshold: 2
     
-    process_noise_covariance:  [1e-3, 1e-3, 1e-3, 0.3, 0.3, 0.05, 1.0, 1.0, 0.1, 0.3, 0.3, 0.5, 0.3, 0.3, 0.3]
+    #process_noise_covariance:  [1e-3, 1e-3, 1e-3, 0.3, 0.3, 0.05, 1.0, 1.0, 0.1, 0.3, 0.3, 0.5, 0.3, 0.3, 0.3]
     # Changes:
     #     yaw PN: 0.01 → 0.05 (trust IMU more)
     #     vx/vy PN: 0.5 → 1.0 (trust wheel velocity more)
     #     yaw vel PN: 0.3 → 0.5 (IMU gyro dominates)
 
-    initial_estimate_covariance:  [0.5, 0.5, 1.0, 0.3, 0.3, 0.1, 0.5, 0.5, 0.5, 0.3, 0.3, 0.3, 1.0, 1.0, 1.0]
+    #initial_estimate_covariance:  [0.5, 0.5, 1.0, 0.3, 0.3, 0.1, 0.5, 0.5, 0.5, 0.3, 0.3, 0.3, 1.0, 1.0, 1.0]
     # Changes: (more pessimistic values, this makes early convergence smoother)
     #     x/y pos IEC: 1e-9 → 0.5 (wheel odom is not very accurate)
     #     z pos IEC: 1e-9 → 1.0 (no z measurement)
@@ -83,23 +88,37 @@ ekf_filter_node:
 
     # Muokataan prosessimelua (X, Y, Z, Roll, Pitch, Yaw, VX, VY, VZ, Vroll, Vpitch, Vyaw...)
     # Nostetaan erityisesti kääntymisen (Yaw ja Vyaw) arvoja
-    #process_noise_covariance: [1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, # Yaw: 0.01 -> 0.5
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0,
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, # Vyaw: 0.3 -> 1.0
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0,
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0,
-    #                           0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3]
+    process_noise_covariance: [1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, # Yaw: 0.01 -> 0.5
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0,
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, # Vyaw: 0.3 -> 1.0
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0,
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0,
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3]
 
-
+    initial_estimate_covariance: [1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
 
 
 ekf_global_node:
@@ -111,7 +130,7 @@ ekf_global_node:
 
     # Kuinka usein suodatin laskee ja julkaisee uuden sijainnin (Hz). 
     # 30.0 Hz on hyvä tasapaino tarkkuuden ja prosessorikuorman välillä ruohonleikkurille.  
-    frequency: 20.0 #30.0
+    frequency: 30.0 #30.0
 
     # Aika (sekunteina), jonka jälkeen anturin tiedon katsotaan vanhentuneen.
     # 0.1s tarkoittaa, että jos sensorilta ei tule tietoa 100ms sisällä, se jätetään huomiotta.
@@ -154,10 +173,11 @@ ekf_global_node:
     # Miksi emme ota X, Y, Yaw sijaintia suoraan odometriasta? Koska pyöräodometria alkaa 
     # aina lipsua ja kerätä virhettä (drift). EKF pystyy päättelemään sijainnin tarkemmin 
     # integroimalla näitä *nopeuksia* ja yhdistämällä ne GPS:n sijaintiin.
+   
     odom0_config: [false, false, false,
                    false, false, false,
-                   true, true, false,
-                   false, false, true,
+                   true,  false, false, # <--- VAIN X-nopeus (vx) takaisin päälle!
+                   false, false, false, 
                    false, false, false]
     odom0_queue_size: 10
     
@@ -167,10 +187,15 @@ ekf_global_node:
     # IMU on erinomainen laite kertomaan, mihin suuntaan robotti katsoo ja kuinka nopeasti se kääntyy.
     # Se kompensoi pyörien sutimista käännöksissä.
     imu0_config: [false, false, false,
-                  true, true, true,
+                  false, false, true, 
                   false, false, false,
-                  false, false, true,
-                  false, false, false]
+                  false, false, true,  # <--- Z-kääntymisnopeus (vyaw) pidetään päällä!
+                  false, false, false] # <--- X-kiihtyvyys (ax) EHDOTTOMASTI POIS PÄÄLTÄ!
+    #imu0_config: [false, false, false,
+    #              true, true, true,
+    #              false, false, false,
+    #              false, false, true,
+    #              false, false, false]
     imu0_queue_size: 10
     # Poistetaan painovoiman vaikutus kiihtyvyysanturilta, jotta se ei sekoita lineaarikiihtyvyyden laskentaa.
     imu0_remove_gravitational_acceleration: true
@@ -188,6 +213,40 @@ ekf_global_node:
                    false, false, false,
                    false, false, false]
     odom1_queue_size: 10
+
+    process_noise_covariance: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0,
+                              0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3]
+
+    initial_estimate_covariance: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 1e-9, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+                                  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+
 
 navsat_transform:
   ros__parameters:
@@ -223,9 +282,9 @@ navsat_transform:
 
     # Käytetäänkö EKF:n laskemaa yaw-kulmaa (suuntaa) apuna GPS-muunnoksessa. 
     # 'false' on usein turvallisempi vaihtoehto perusajossa, jotta robotti luottaa ensisijaisesti IMUun suunnan määrityksessä.
-    use_odometry_yaw: false
+    use_odometry_yaw: true
 
     # Odotetaanko, että käyttäjä antaa "aloituspisteen" (datum) erikseen?
     # 'false' tarkoittaa, että järjestelmä ottaa ensimmäisen luotettavan GPS-pisteen, 
     # ja asettaa sen automaattisesti kartan origoksi (X=0, Y=0). Erittäin kätevää automaattisessa käynnistyksessä.
-    wait_for_datum: false
+    #wait_for_datum: false

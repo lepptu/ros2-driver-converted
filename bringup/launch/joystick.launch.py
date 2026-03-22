@@ -28,7 +28,7 @@ def generate_launch_description():
             executable='teleop_node',
             name='teleop_node',
             parameters=[joy_params, {'publish_stamped_twist': True}],
-            remappings=[('/cmd_vel','/hoverboard_base_controller/cmd_vel')]
+            remappings=[('/cmd_vel','/cmd_vel_joy')]
          )
 
     joy_to_arduino_node = Node(

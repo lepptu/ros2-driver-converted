@@ -1,11 +1,11 @@
 ublox_dgnss:
   ros__parameters:
     #DEVICE_SERIAL_STRING: "/dev/tty_Ardusimple"
-    UART1_BAUDRATE: 115200 # Tarkista Ardusimplen baudrate (usein 115200 tai 460800)
+    #UART1_BAUDRATE: 115200 # Tarkista Ardusimplen baudrate (usein 115200 tai 460800)
     FRAME_ID: "gps_link"
     # Mittausnopeus 10Hz (100ms välein)
-    CFG_RATE_MEAS: 100 #50
-    CFG_RATE_NAV: 1
+    CFG_RATE_MEAS: 10 #50
+    CFG_RATE_NAV: 100
     
     # Käsketään ajuria julkaisemaan standardit ROS-viestit
     publish:

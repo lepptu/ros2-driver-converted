@@ -16,9 +16,9 @@ teleop_node:
     axis_angular:
       yaw: 3
     scale_angular:
-      yaw: 0.5
+      yaw: 0.8
     scale_angular_turbo:
-      yaw: 1.0
+      yaw: 2.0
 
     publish_stamped_twist: true
 

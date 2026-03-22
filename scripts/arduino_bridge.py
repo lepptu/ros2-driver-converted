@@ -6,6 +6,7 @@ from rclpy.node import Node
 from std_msgs.msg import Int32, Bool, Float32  # String poistettu, koska lähetämme raakadataa
 import serial
 import threading
+import time
 
 class ArduinoBridge(Node):
     def __init__(self):
@@ -144,6 +145,12 @@ class ArduinoBridge(Node):
 
                 except Exception as e:
                     self.get_logger().warn(f"Virhe datan lukemisessa: {e}")
+            else:
+                # <--- TÄMÄ ON SE TAIKURI, JOKA VAPAUTTAA PROSESSORIN! --->
+                # Jos dataa ei ole odottamassa, nukutaan 10 millisekuntia 
+                # ennen kuin kysytään uudestaan. Tämä on tarpeeksi nopea reagointiaika 
+                # puskurille, mutta antaa prosessorin levätä.
+                time.sleep(0.01)
 
 def main(args=None):
     rclpy.init(args=args)
