@@ -9,6 +9,7 @@ ekf_filter_node:
     transform_timeout: 0.0
     print_diagnostics: true
     debug: false
+    debug_out_file: "/home/ros-pi/pi_ws/ekf_debug.txt"  # Debug-tiedosto, johon suodattimen sisäiset tilat ja laskut tallennetaan (esim. odom, imu, gps data + suodattimen tilat)
 
     map_frame: map
     odom_frame: odom
@@ -19,8 +20,8 @@ ekf_filter_node:
     odom0: /hoverboard_base_controller/odom
     odom0_config: [false, false, false,
                    false, false, false,
-                   true,  false, false, # X-nopeus
-                   false, false, false, # Z-kulmanopeus
+                   true,  true, true,
+                   false, false, false, 
                    false, false, false]
 
         #        [x_pos   , y_pos    , z_pos,
@@ -35,12 +36,12 @@ ekf_filter_node:
     #odom0_nodelay: true
 
     # 2. IMU-data (tarkista oikea topic, johon BNO085 julkaisee)
-    imu0: /imu
+    imu0: /imu/data
     imu0_config: [false, false, false,
-                  false, false, true, 
                   false, false, false,
-                  false, false, true,  # <--- Z-kääntymisnopeus (vyaw) pidetään päällä!
-                  false, false, false] # <--- X-kiihtyvyys (ax) EHDOTTOMASTI POIS PÄÄLTÄ!
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
     #imu0_config: [false, false, false,
     #              true, true, true,  
     #              false, false, false,
@@ -54,10 +55,12 @@ ekf_filter_node:
         #         x_accel , y_accel  , z_accel]
 
     #imu0_nodelay: true
-    imu0_relative: true
+    imu0_relative: false
     imu0_remove_gravitational_acceleration: true
     imu0_queue_size: 10
     imu0_differential: false
+
+    use_control: false
 
     #imu0_pose_rejection_threshold: 2.5
     #imu0_twist_rejection_threshold: 2
@@ -93,13 +96,13 @@ ekf_filter_node:
                                0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                               0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, # Yaw: 0.01 -> 0.5
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0,
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 0.0,
-                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, # Vyaw: 0.3 -> 1.0
+                               0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0, 0.0, 
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0, 0.0,
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.0,
                                0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3]
@@ -154,6 +157,7 @@ ekf_global_node:
     print_diagnostics: true
     # Debug-tulostus on pois päältä ('false'), jotta lokitiedostot eivät täyty valtavasta määrästä dataa.
     debug: false
+    debug_out_file: "/home/ros-pi/pi_ws/ekf_global_debug.txt"
 
     # Määritellään standardin mukaiset TF-kehykset.
     map_frame: map
@@ -176,26 +180,27 @@ ekf_global_node:
    
     odom0_config: [false, false, false,
                    false, false, false,
-                   true,  false, false, # <--- VAIN X-nopeus (vx) takaisin päälle!
+                   true,  true, true,
                    false, false, false, 
                    false, false, false]
     odom0_queue_size: 10
     
     # --- IMU (Imu0) ---
-    imu0: /imu
+    imu0: /imu/data
     # Asetettu 'true' arvoille roll, pitch, yaw (asento) ja vyaw (kääntymisnopeus).
     # IMU on erinomainen laite kertomaan, mihin suuntaan robotti katsoo ja kuinka nopeasti se kääntyy.
     # Se kompensoi pyörien sutimista käännöksissä.
     imu0_config: [false, false, false,
-                  false, false, true, 
                   false, false, false,
-                  false, false, true,  # <--- Z-kääntymisnopeus (vyaw) pidetään päällä!
-                  false, false, false] # <--- X-kiihtyvyys (ax) EHDOTTOMASTI POIS PÄÄLTÄ!
+                  false, false, false,
+                  false, false, true,
+                  false, false, false]
     #imu0_config: [false, false, false,
     #              true, true, true,
     #              false, false, false,
     #              false, false, true,
     #              false, false, false]
+    imu0_differential: false
     imu0_queue_size: 10
     # Poistetaan painovoiman vaikutus kiihtyvyysanturilta, jotta se ei sekoita lineaarikiihtyvyyden laskentaa.
     imu0_remove_gravitational_acceleration: true
@@ -213,6 +218,28 @@ ekf_global_node:
                    false, false, false,
                    false, false, false]
     odom1_queue_size: 10
+
+
+
+    use_control: false
+
+    #process_noise_covariance: [
+    #  0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.05, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1e-3, 0.0, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0,
+    #  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5
+    #]
 
     process_noise_covariance: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                               0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -252,29 +279,32 @@ navsat_transform:
   ros__parameters:
     # Kuinka usein GPS-koordinaatit muunnetaan metrisiksi X/Y-koordinaateiksi.
     frequency: 30.0
-    delay: 0.0
+    delay: 3.0
 
     # Magneettinen deklinaatio korjaa eron "magneettisen pohjoisnavan" (jota kompassi/IMU katsoo)
     # ja "maantieteellisen pohjoisnavan" (jota GPS käyttää) välillä.
     # Ruokolahdella ero on n. +11.8 astetta, eli 0.206 radiaania. Tämä on elintärkeä asetus, 
     # jotta IMUn antama suunta saadaan täsmäämään GPS-suuntiman kanssa.
-    magnetic_declination_radians: 0.206
+    magnetic_declination_radians: 0.0 #0.214 #-0.206
 
     # Jos IMU on fyysisesti asennettu robottiin niin, että sen "nolla" (yleensä X-akseli) 
     # ei osoita suoraan eteenpäin, tässä voidaan kertoa poikkeama. 0.0 tarkoittaa suoraa asennusta.
     yaw_offset: 0.0 #0.6458
+    #yaw_offset: 1.570796327 #1.570796
 
     wait_for_datum: true
-    datum: [61.280628080999996, 28.827641848, 0.0]
+    datum: [61.280627768, 28.827641639, 0.0]
+    #datum: [61.280628080999996, 28.827641848, 0.0]
 
     # Pakottaa GPS-korkeusdatan nollaan. 'true', koska kyseessä on robottiruohonleikkuri, 
     # emmekä halua GPS-korkeusheittelyiden vaikuttavan reittisuunnitteluun.
     zero_altitude: true
-
+    
     # Julkaiseeko navsat_transform TF-muunnoksen suoraan (map -> odom).
     # Asetettu 'false', koska olemme asettaneet ekf_global_node:n (yllä) tekemään tämän julkaisun.
     # Jos tämä olisi true, kaksi eri noodia riitelisi TF-puun hallinnasta.
-    broadcast_cartesian_transform: false
+    #broadcast_cartesian_transform: true
+    use_local_cartesian: true
 
     # Julkaisee topicin (/gps/filtered), jossa on tasattu ja suodatettu GPS-sijainti.
     # Hyödyllinen esimerkiksi robotin piirtämisessä web-käyttöliittymän kartalle.
@@ -282,9 +312,4 @@ navsat_transform:
 
     # Käytetäänkö EKF:n laskemaa yaw-kulmaa (suuntaa) apuna GPS-muunnoksessa. 
     # 'false' on usein turvallisempi vaihtoehto perusajossa, jotta robotti luottaa ensisijaisesti IMUun suunnan määrityksessä.
-    use_odometry_yaw: true
-
-    # Odotetaanko, että käyttäjä antaa "aloituspisteen" (datum) erikseen?
-    # 'false' tarkoittaa, että järjestelmä ottaa ensimmäisen luotettavan GPS-pisteen, 
-    # ja asettaa sen automaattisesti kartan origoksi (X=0, Y=0). Erittäin kätevää automaattisessa käynnistyksessä.
-    #wait_for_datum: false
+    use_odometry_yaw: false

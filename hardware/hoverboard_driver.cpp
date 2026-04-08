@@ -46,13 +46,22 @@ namespace hoverboard_driver
     curr_pub[right_wheel] = this->create_publisher<std_msgs::msg::Float64>("hoverboard/right_wheel/dc_current", 3);
     connected_pub = this->create_publisher<std_msgs::msg::Bool>("hoverboard/connected", 3);
 
-    declare_parameter("f", 10.2);
-    declare_parameter("p", 1.0);
-    declare_parameter("i", 0.1);
-    declare_parameter("d", 1.0);
-    declare_parameter("i_clamp_min", -10.0);
-    declare_parameter("i_clamp_max", 10.0);
-    declare_parameter("antiwindup", false);
+    //declare_parameter("f", 10.2);
+    //declare_parameter("p", 1.0);
+    //declare_parameter("i", 0.1);
+    //declare_parameter("d", 1.0);
+    //declare_parameter("i_clamp_min", -10.0);
+    //declare_parameter("i_clamp_max", 10.0);
+    //declare_parameter("antiwindup", false);
+    declare_parameter("use_pid", false);
+    declare_parameter("f", 1.0);
+    declare_parameter("p", 0.2);
+    declare_parameter("i", 0.6);
+    declare_parameter("d", 0.005);
+    declare_parameter("i_clamp_min", -50.0);
+    declare_parameter("i_clamp_max", 50.0);
+    declare_parameter("antiwindup", true);
+    get_parameter("use_pid", pid_config.use_pid);
     get_parameter("f", pid_config.f);
     get_parameter("p", pid_config.p);
     get_parameter("i", pid_config.i);
@@ -124,6 +133,11 @@ namespace hoverboard_driver
     // Here update class attributes, do some actions, etc.
     for (const auto &param : parameters)
     {
+      if (param.get_name() == "use_pid")
+      {
+        pid_config.use_pid = param.as_bool();
+        RCLCPP_INFO(get_logger(), "new value for PID USE_PID: %i", pid_config.use_pid);
+      }
       if (param.get_name() == "p")
       {
         pid_config.p = param.as_double();
@@ -141,7 +155,7 @@ namespace hoverboard_driver
       }
       if (param.get_name() == "f")
       {
-        pid_config.p = param.as_double();
+        pid_config.f = param.as_double();
         RCLCPP_INFO(get_logger(), "new value for PID F: %f", pid_config.f);
       }
       if (param.get_name() == "i_clamp_min")
@@ -186,7 +200,8 @@ namespace hoverboard_driver
     //hw_velocities_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
     hw_positions_.resize(info_.joints.size(), 0.0);
     hw_velocities_.resize(info_.joints.size(), 0.0);
-    hw_commands_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
+    hw_commands_.resize(info_.joints.size(), 0.0);
+    //hw_commands_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
 
     for (const hardware_interface::ComponentInfo &joint : info_.joints)
     {
@@ -332,6 +347,9 @@ namespace hoverboard_driver
   hardware_interface::return_type hoverboard_driver::read(
       const rclcpp::Time & time, const rclcpp::Duration & /*period*/)
   {
+    
+    rclcpp::spin_some(hardware_publisher);
+
     // to be able to compare times, we need to set last_read time to a correct time source
     // set the actual time as last_read, when it hasn't been set before (first attempt to read from harware)
     if (first_read_pass_ == true)
@@ -413,13 +431,15 @@ namespace hoverboard_driver
         hardware_publisher->publish_curr(right_wheel, (double)msg.right_dc_curr / 100.0);
 
         // Convert RPM to RAD/S
-        hw_velocities_[left_wheel] = direction_correction * (abs(msg.speedL_meas) * 0.10472);
-        hw_velocities_[right_wheel] = direction_correction * (abs(msg.speedR_meas) * 0.10472);
+        //hw_velocities_[left_wheel] = direction_correction * (abs(msg.speedL_meas) * 0.10472);
+        //hw_velocities_[right_wheel] = direction_correction * (abs(msg.speedR_meas) * 0.10472);
+        hw_velocities_[left_wheel] = direction_correction * (msg.speedL_meas * 0.10472);
+        hw_velocities_[right_wheel] = direction_correction * (-msg.speedR_meas * 0.10472);
         hardware_publisher->publish_vel(left_wheel, hw_velocities_[left_wheel]);
         hardware_publisher->publish_vel(right_wheel, hw_velocities_[right_wheel]);
 
         // Process encoder values and update odometry
-        on_encoder_update(time, msg.wheelR_cnt, msg.wheelL_cnt);
+        on_encoder_update(time, -msg.wheelR_cnt, msg.wheelL_cnt);
       }
       else
       {
@@ -431,7 +451,7 @@ namespace hoverboard_driver
   }
 
   hardware_interface::return_type hoverboard_driver::hoverboard_driver::write(
-      const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
+      const rclcpp::Time & time, const rclcpp::Duration & period)
   {
     if (port_fd == -1)
     {
@@ -452,20 +472,48 @@ namespace hoverboard_driver
                           hardware_publisher->pid_config.i_clamp_max, hardware_publisher->pid_config.i_clamp_min,
                           hardware_publisher->pid_config.antiwindup);
 
-    // calculate PID values
+
+
+    //// calculate PID values
     //double pid_outputs[2];
     //pid_outputs[0] = pids[0](hw_velocities_[left_wheel], hw_commands_[left_wheel], period);
-    //pid_outputs[1] = pids[1](hw_velocities_[left_wheel], hw_commands_[right_wheel], period);
-
-    // Convert PID outputs in RAD/S to RPM
+    //pid_outputs[1] = pids[1](hw_velocities_[right_wheel], hw_commands_[right_wheel], period);
+    //
+    //// Convert PID outputs in RAD/S to RPM
     //double set_speed[2] = {
-     //   pid_outputs[0] / 0.10472,
-      //  pid_outputs[1] / 0.10472};
+    //    pid_outputs[0] / 0.10472,
+    //    pid_outputs[1] / 0.10472};
+//
+    // //double set_speed[2] = {
+    // //      hw_commands_[left_wheel] / 0.10472,
+    // //      hw_commands_[right_wheel] / 0.10472
+    // //};
+    // Valitaan kumpaa ohjausta käytetään
+    
+    double set_speed[2];
+    if (hardware_publisher->pid_config.use_pid) 
+    {
+        // PID-OHJAUS PÄÄLLÄ
+        double pid_outputs[2];
+        // Huom: tässä on nyt oikein hw_velocities_[right_wheel] oikealle pyörälle
+        pid_outputs[0] = pids[0](hw_velocities_[left_wheel], hw_commands_[left_wheel], period);
+        pid_outputs[1] = pids[1](hw_velocities_[right_wheel], hw_commands_[right_wheel], period);
 
-     double set_speed[2] = {
-           hw_commands_[left_wheel] / 0.10472,
-           hw_commands_[right_wheel] / 0.10472
-     };
+        // Convert PID outputs in RAD/S to RPM
+        set_speed[0] = pid_outputs[0] / 0.10472;
+        set_speed[1] = pid_outputs[1] / 0.10472;
+    } 
+    else 
+    {
+        // PID-OHJAUS POIS PÄÄLTÄ (Alkuperäinen tila)
+        set_speed[0] = hw_commands_[left_wheel] / 0.10472;
+        set_speed[1] = hw_commands_[right_wheel] / 0.10472;
+    }
+
+
+
+
+
 
     // Calculate steering from difference of left and right
     const double speed = (set_speed[0] + set_speed[1]) / 2.0;

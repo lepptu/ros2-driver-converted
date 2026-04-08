@@ -1,0 +1,27 @@
+<!-- Kustomoitu Behavior Tree reitin seuraamiseen -->
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <!-- RecoveryNode yrittää päätoimintoa, ja jos se epäonnistuu, suorittaa palautumistoimet -->
+    <RecoveryNode number_of_retries="4" name="FollowPathWithRecovery">
+      
+      <!-- PÄÄTOIMINTO: Reitin seuraaminen ja kuljettujen pisteiden poisto -->
+      <PipelineSequence name="NavigateWithLocalAvoidance">
+        <!-- Poistaa reitistä ne pisteet, jotka on jo ohitettu (esim. 30 cm säteellä robotista) -->
+        <TruncatePath distance="0.3" input_path="{path}" output_path="{truncated_path}"/>
+        <!-- Paikallinen suunnittelija (Controller) seuraa reittiä ja hoitaa dynaamisen esteiden väistön automaattisesti -->
+        <FollowPath path="{truncated_path}" controller_id="FollowPath" goal_checker_id="goal_checker"/>
+      </PipelineSequence>
+
+      <!-- PALAUTUMISTOIMET: Jos reitti on aivan tukossa, suoritetaan nämä vuorotellen -->
+      <ReactiveFallback name="RecoveryFallback">
+        <GoalUpdated/>
+        <RoundRobin name="RecoveryActions">
+          <!-- 1. Puhdistetaan paikallinen este-kartta (jos lidar on nähnyt olemattoman esteen) -->
+          <ClearEntireCostmap name="ClearLocalCostmap" service_name="local_costmap/clear_entirely_local_costmap"/>
+          <!-- 2. Odotetaan 2 sekuntia (jos este on liikkuva, esim. ihminen tai eläin) -->
+          <Wait wait_duration="2.0"/>
+        </RoundRobin>
+      </ReactiveFallback>
+    </RecoveryNode>
+  </BehaviorTree>
+</root>

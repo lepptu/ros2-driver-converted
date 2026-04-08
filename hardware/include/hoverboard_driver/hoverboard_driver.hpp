@@ -96,6 +96,7 @@ namespace hoverboard_driver
     /// @brief PID configuration structure
     struct
     {
+      bool use_pid;
       double p;
       double i;
       double d;

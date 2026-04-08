@@ -82,17 +82,17 @@ def generate_launch_description():
         [FindPackageShare(description_package), "diffbot/rviz", "diffbot_view.rviz"]
     )
 
-    joint_state_publisher_node = Node(
-        package="joint_state_publisher_gui",
-        executable="joint_state_publisher_gui",
-        condition=IfCondition(gui),
-    )
-    robot_state_publisher_node = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        output="both",
-        parameters=[robot_description],
-    )
+    #joint_state_publisher_node = Node(
+    #    package="joint_state_publisher_gui",
+    #    executable="joint_state_publisher_gui",
+    #    condition=IfCondition(gui),
+    #)
+    #robot_state_publisher_node = Node(
+    #    package="robot_state_publisher",
+    #    executable="robot_state_publisher",
+    #    output="both",
+    #    parameters=[robot_description],
+    #)
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -103,8 +103,8 @@ def generate_launch_description():
     )
 
     nodes = [
-        joint_state_publisher_node,
-        robot_state_publisher_node,
+        #joint_state_publisher_node,
+        #robot_state_publisher_node,
         rviz_node,
     ]
 

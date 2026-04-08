@@ -24,7 +24,9 @@ def generate_launch_description():
         package='ublox_dgnss_node',
         executable='ublox_dgnss_node',
         name='ublox_dgnss',
-        output='both',  # Tulostaa lokit sekä terminaaliin että ROS-lokeihin
+        output='screen',  # Tulostaa lokit sekä terminaaliin että ROS-lokeihin
+        #arguments=['--ros-args', '--log-level', 'WARN'],
+        arguments=['--ros-args', '--log-level', 'INFO'],
         parameters=[gps_config_path],
         remappings=[
             # PERUSTELU: Jotta GPS saavuttaa senttimetritarkkuuden (RTK Fix), sen täytyy
@@ -38,17 +40,18 @@ def generate_launch_description():
     # Tämä solmu yhdistää verkon yli (Wi-Fi/4G) RTKBase-tukiasemaasi.
     # Se lataa jatkuvaa RTCM-korjausvirtaa ja julkaisee sen ROS-järjestelmään.
     ntrip_node = Node(
-        package='ntrip_client',
-        executable='ntrip_ros.py',
+        package='ntrip_client_node',
+        #executable='ntrip_ros.py',
+        executable='ntrip_client_node',
         name='ntrip_client_node',
-        output='both',
-        parameters=[gps_config_path],
-        remappings=[
-            # PERUSTELU: Ntrip-client julkaisee oletuksena dataa topicciin '/rtcm'. 
-            # Nimämme sen uudelleen '/ntrip_client/rtcm', jotta se yhdistyy saumattomasti 
-            # yllä olevaan Ublox-noden remappaukseen. Näin korjausdata virtaa internetistä -> Ubloxiin.
-            ('/rtcm', '/ntrip_client/rtcm')
-        ]
+        output='screen',
+        parameters=[gps_config_path]
+        #remappings=[
+        #    # PERUSTELU: Ntrip-client julkaisee oletuksena dataa topicciin '/rtcm'. 
+        #    # Nimämme sen uudelleen '/ntrip_client/rtcm', jotta se yhdistyy saumattomasti 
+        #    # yllä olevaan Ublox-noden remappaukseen. Näin korjausdata virtaa internetistä -> Ubloxiin.
+        #    ('/rtcm', '/ntrip_client/rtcm')
+        #]
     )
 
     # --- LISÄTTY: Virallinen UBX -> NavSatFix muunnin ---
@@ -64,33 +67,6 @@ def generate_launch_description():
             # Reititetään se nimelle '/ublox_dgnss/fix', jota alla oleva 
             # navsat_transform_node on jo ohjelmoitu kuuntelemaan.
             ('/fix', '/ublox_dgnss/fix') 
-        ]
-    )
-
-
-    # --- NavSat Transform Node ---
-    # GPS puhuu kieltä WGS84 (pituuspiiri, leveyspiiri, korkeus), jota on hankala käyttää
-    # paikallisessa matematiikassa. Tämä solmu on kääntäjä: se ottaa GPS-koordinaatit
-    # ja muuntaa ne tavallisiksi X/Y -metreiksi "map"-koordinaatistossa.
-    navsat_transform_node = Node(
-        package='robot_localization',
-        executable='navsat_transform_node',
-        name='navsat_transform',
-        output='screen',
-        parameters=[ekf_config_path],
-        remappings=[
-            # PERUSTELU REMAPPIIN: 
-            # 1. NavSat tarvitsee IMU-dataa tietääkseen mihin suuntaan maapalloa robotti katsoo.
-            ('imu/data', '/imu'),
-
-            # 2. Se tarvitsee Ubloxin julkaiseman tarkan GPS-paikan (Lat/Lon).
-            ('gps/fix', '/ublox_dgnss/fix'), 
-
-            # 3. Se tarvitsee robotin *globaalin* sijainnin EKF:ltä (odometry/global), jotta se osaa 
-            # ankkuroida ensimmäisen GPS-pisteen oikein kartalle ja laskea muunnoksen.
-            # Oletuksena se kuuntelisi topicia 'odometry/filtered', mutta koska meillä on kaksi
-            # EKF:ää (paikallinen ja globaali), meidän on pakko spesifioida, että tämä käyttää globaalia.
-            ('odometry/filtered', '/odometry/global')
         ]
     )
 
@@ -112,6 +88,36 @@ def generate_launch_description():
             ('odometry/filtered', '/odometry/global')
         ]
     )
+
+
+    # --- NavSat Transform Node ---
+    # GPS puhuu kieltä WGS84 (pituuspiiri, leveyspiiri, korkeus), jota on hankala käyttää
+    # paikallisessa matematiikassa. Tämä solmu on kääntäjä: se ottaa GPS-koordinaatit
+    # ja muuntaa ne tavallisiksi X/Y -metreiksi "map"-koordinaatistossa.
+    navsat_transform_node = Node(
+        package='robot_localization',
+        executable='navsat_transform_node',
+        name='navsat_transform',
+        output='screen',
+        parameters=[ekf_config_path],
+        remappings=[
+            # PERUSTELU REMAPPIIN: 
+            # 1. NavSat tarvitsee IMU-dataa tietääkseen mihin suuntaan maapalloa robotti katsoo.
+            ('imu/data', '/imu/data'),
+
+            # 2. Se tarvitsee Ubloxin julkaiseman tarkan GPS-paikan (Lat/Lon).
+            ('gps/fix', '/ublox_dgnss/fix'), 
+
+            # 3. Se tarvitsee robotin *globaalin* sijainnin EKF:ltä (odometry/global), jotta se osaa 
+            # ankkuroida ensimmäisen GPS-pisteen oikein kartalle ja laskea muunnoksen.
+            # Oletuksena se kuuntelisi topicia 'odometry/filtered', mutta koska meillä on kaksi
+            # EKF:ää (paikallinen ja globaali), meidän on pakko spesifioida, että tämä käyttää globaalia.
+            ('odometry/filtered', '/odometry/global')
+            #('odometry/filtered', '/odometry/filtered')
+        ]
+    )
+
+
 
     # Palautetaan LaunchDescription, joka kertoo ROS 2:lle, että kaikki nämä 
     # neljä solmua pitää käynnistää samanaikaisesti, kun tämä tiedosto ajetaan.

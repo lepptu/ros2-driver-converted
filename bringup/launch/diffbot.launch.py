@@ -59,6 +59,15 @@ def generate_launch_description():
             "hoverboard_controllers.yaml",
         ]
     )
+
+    bno085_params = PathJoinSubstitution(
+        [
+            FindPackageShare("hoverboard_driver"),
+            "config",
+            "bno085_params.yaml",
+        ]
+    )
+
    # rviz_config_file = PathJoinSubstitution(
    #     [FindPackageShare("ros2_control_demo_description"), "diffbot/rviz", "diffbot.rviz"]
    # )
@@ -136,27 +145,31 @@ def generate_launch_description():
     imu_node = Node(
         package='bno08x_driver',
         executable='bno08x_driver', # Suoritettavan tiedoston nimi ajuripaketissa
-        name='bno08x_node',
+        name='bno08x_driver',
         output='screen',
-        parameters=[{
-            'frame_id': 'imu_link',   # Vastaa URDF-mallisi linkkiä
-            'i2c': {
-                'enabled': True,
-                'bus': '/dev/i2c-1',
-                'address': '0x4A'
-            },
-            'publish': {
-                'magnetic_field': {
-                    'enabled': True,
-                    'rate': 100
-                },
-                'imu': {
-                    'enabled': True,
-                    'rate': 100,
-                    'orientation_yaw_variance': 0.005  # 5e-3 = 0.005 is default
-                }
-            }
-        }]
+        #emulate_tty=True,
+        parameters=[bno085_params],
+        #parameters=[{
+        #    'frame_id': 'imu_link',   # Vastaa URDF-mallisi linkkiä
+        #    'verbose': False,
+        #    'i2c': {
+        #        'enabled': True,
+        #        'bus': '/dev/i2c-1',
+        #        'address': '0x4A'
+        #    },
+        #    'publish': {
+        #        'magnetic_field': {
+        #            'enabled': True,
+        #            'rate': 100
+        #        },
+        #        'imu': {
+        #            'enabled': True,
+        #            'rate': 100,
+        #            'orientation_yaw_variance': 0.0075  # 5e-3 = 0.005 is default
+        #        }
+        #    }
+        #}],
+        remappings=[("imu", "imu/data"), ("magnetic_field","imu/mag")]
     )
 
     ekf_config_path = PathJoinSubstitution(

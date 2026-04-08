@@ -71,6 +71,7 @@ install(PROGRAMS
   scripts/arduino_bridge.py
   scripts/joy_to_arduino.py
   scripts/record_boundary.py
+  scripts/mowing_manager.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

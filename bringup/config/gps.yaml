@@ -4,12 +4,12 @@ ublox_dgnss:
     #UART1_BAUDRATE: 115200 # Tarkista Ardusimplen baudrate (usein 115200 tai 460800)
     FRAME_ID: "gps_link"
     # Mittausnopeus 10Hz (100ms välein)
-    CFG_RATE_MEAS: 10 #50
+    CFG_RATE_MEAS: 10
     CFG_RATE_NAV: 100
     
     # Käsketään ajuria julkaisemaan standardit ROS-viestit
     publish:
-      nav_sat_fix: true    # Tämä luo /fix tai /ublox_dgnss/fix topicin
+      nav_sat_fix: false   # Asetettu false, koska ublox_nav_sat_fix_hp_node hoitaa fixin julkaisun
       nav_pvt: true        # Julkaisee näkemäsi raakadatan ROS-viestinä
       nav_cov: true
       nav_relposned: false   # Tarvitaan vain jos käytössä kaksi GPS-antennia (Heading)
@@ -28,12 +28,16 @@ ublox_dgnss:
     CFG_USBINPROT_UBX: 1
     CFG_USBINPROT_NMEA: 0
 
+    #CFG_USBOUTPROT_NMEA: False
+    #CFG_MSGOUT_UBX_RXM_RTCM_USB: 1
+
 ntrip_client_node:
   ros__parameters:
     host: "192.168.1.31"  # MUUTA TÄHÄN: RTKBase-palvelimesi IP-osoite
     port: 2101             # Oletusportti RTK-datalla
+    use_https: false
     mountpoint: "Ukonsalmentie" # MUUTA TÄHÄN: RTKBase-mountpointtisi nimi
-    authenticate: True
+    #authenticate: True
     username: "uknslm"       # MUUTA TÄHÄN: RTKBasen käyttäjätunnus
     password: "uknslm19"   # MUUTA TÄHÄN: RTKBasen salasana
     rtcm_frame_id: "map"
