@@ -1,0 +1,59 @@
+fusioncore:
+  ros__parameters:
+    base_frame: base_link
+    odom_frame: odom
+    publish_rate: 100.0
+
+    imu.gyro_noise: 0.005
+    # Set true if IMU has magnetometer (9-axis). False for 6-axis gyro/accel only.
+    imu.has_magnetometer: true
+    imu.accel_noise: 0.1
+
+    encoder.vel_noise: 0.05
+    encoder.yaw_noise: 0.02
+
+    gnss.base_noise_xy: 1.0
+    gnss.base_noise_z: 2.0
+    gnss.heading_noise: 0.02
+    gnss.max_hdop: 4.0
+    gnss.min_satellites: 4
+
+    # Antenna lever arm — offset from base_link to GNSS antenna in body frame
+    # x=forward, y=left, z=up (meters)
+    # Leave at 0.0 if antenna is directly above base_link origin
+    gnss.lever_arm_x: 0.31
+    gnss.lever_arm_y: 0.0
+    gnss.lever_arm_z: 0.165
+
+    # Optional second GNSS receiver — leave empty to disable
+    #gnss.fix2_topic: ""
+
+    # compass_msgs/Azimuth heading topic (peci1 standard)
+    # Preferred over gnss.heading_topic when available
+    # Leave empty to use sensor_msgs/Imu heading instead
+    #gnss.azimuth_topic: ""
+
+    # Mahalanobis outlier rejection
+    # Rejects GPS jumps, encoder spikes, heading outliers
+    outlier_rejection: true
+    outlier_threshold_gnss: 16.27   # chi2(3, 0.999)
+    outlier_threshold_imu: 15.09    # chi2(6, 0.999)
+    outlier_threshold_enc: 11.34    # chi2(3, 0.999)
+    outlier_threshold_hdg: 10.83    # chi2(1, 0.999)
+
+    # Adaptive noise covariance
+    # Automatically estimates true sensor noise from innovation sequence
+    # Set to false to use fixed config params only
+    adaptive.imu: true
+    adaptive.encoder: true
+    adaptive.gnss: true
+    adaptive.window: 50       # number of updates to track (50 = ~0.5s at 100Hz)
+    adaptive.alpha: 0.01      # learning rate (0.01 = slow, stable)
+
+    ukf.q_position: 0.01
+    ukf.q_orientation: 0.01
+    ukf.q_velocity: 0.1
+    ukf.q_angular_vel: 0.1
+    ukf.q_acceleration: 1.0
+    ukf.q_gyro_bias: 1.0e-5
+    ukf.q_accel_bias: 1.0e-5

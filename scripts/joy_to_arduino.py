@@ -27,6 +27,11 @@ class JoyToArduino(Node):
 
         self.add_on_set_parameters_callback(self.parameter_callback)
 
+        # Track previous button states so we only publish mow motor commands
+        # on state CHANGES (edge-triggered).  Publishing false on every joystick
+        # tick at joystick rate drowns out the autonomous keep-alive signal.
+        self._prev_mowEn = False
+
         # Julkaisijat
         #self.rele1_pub = self.create_publisher(Bool, 'rele1_cmd', 10)
         #self.rele2_pub = self.create_publisher(Bool, 'rele2_cmd', 10)
@@ -73,12 +78,16 @@ class JoyToArduino(Node):
             hoverBtnR1_is_pressed = (msg.buttons[self.hoverBtnR1_idx] == 1)
             varaReleR2_is_pressed = (msg.buttons[self.varaReleR2_idx] == 1)
 
-            # Valmistellaan viestit
-            mowEn_msg = Bool()
-            mowEn_msg.data = mowEn_is_pressed  # True jos painettu, False jos vapautettu
-            
-            mowRpm_msg = Int32()
-            mowRpm_msg.data = self.mowRpmSET_val if mowEn_is_pressed else 0 # 100 jos painettu, 0 jos vapautettu
+            # Mow motor: only publish when button state changes so we don't
+            # flood the topic with false and override the autonomous keep-alive.
+            if mowEn_is_pressed != self._prev_mowEn:
+                self._prev_mowEn = mowEn_is_pressed
+                mowEn_msg = Bool()
+                mowEn_msg.data = mowEn_is_pressed
+                self.mowMotorEN_pub.publish(mowEn_msg)
+                mowRpm_msg = Int32()
+                mowRpm_msg.data = self.mowRpmSET_val if mowEn_is_pressed else 0
+                self.mowMotorRpmSET_pub.publish(mowRpm_msg)
 
             hoverBtnR1_msg = Bool()
             hoverBtnR1_msg.data = hoverBtnR1_is_pressed
@@ -87,11 +96,6 @@ class JoyToArduino(Node):
             varaReleR2_msg.data = varaReleR2_is_pressed
 
             # Julkaistaan viestit ROS2-verkkoon
-            #self.rele1_pub.publish(r_msg)
-            #self.rele2_pub.publish(r_msg)
-            #self.pwm_pub.publish(p_msg)
-            self.mowMotorEN_pub.publish(mowEn_msg)
-            self.mowMotorRpmSET_pub.publish(mowRpm_msg)
             self.hoverBtnR1_pub.publish(hoverBtnR1_msg)
             self.varaReleR2_pub.publish(varaReleR2_msg)
 

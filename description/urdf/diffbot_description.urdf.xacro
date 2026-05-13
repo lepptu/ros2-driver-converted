@@ -270,6 +270,16 @@
     <link name="base_footprint">
     </link>
 
+<!-- gps -> gnss -->
+    <joint name="${prefix}gnss_joint" type="fixed">
+        <parent link="gps_link"/>
+        <child link="gnss_link"/>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
+    <link name="gnss_link">
+    </link>
+
 
   </xacro:macro>
 

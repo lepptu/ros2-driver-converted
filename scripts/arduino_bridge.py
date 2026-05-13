@@ -83,8 +83,14 @@ class ArduinoBridge(Node):
 
     def send_to_arduino(self):
         """Lähettää ohjauskomennot Arduinolle muodossa r1,r2,pwm\n"""
-        #cmd = f"{self.rele1_state},{self.rele2_state},{self.pwm_state}\n"
-        cmd = f"{self.mowMotorEN_State},{self.mowMotorRpmSet_state},{self.hoverBtnR1_state},{self.varaReleR2_state}\n"
+        # Guard: don't enable the motor if the RPM setpoint hasn't arrived yet.
+        # The enable and RPM commands come from two separate ROS2 topics so the
+        # enable callback can fire before the RPM callback, which would start the
+        # motor at 0 RPM (minimum speed ~200 RPM) instead of the requested value.
+        effective_en = self.mowMotorEN_State
+        if effective_en == 1 and self.mowMotorRpmSet_state == 0:
+            effective_en = 0
+        cmd = f"{effective_en},{self.mowMotorRpmSet_state},{self.hoverBtnR1_state},{self.varaReleR2_state}\n"
         self.ser.write(cmd.encode('utf-8'))
 
     def read_from_arduino(self):

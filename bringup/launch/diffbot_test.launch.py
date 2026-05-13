@@ -1,0 +1,212 @@
+# Copyright 2020 ros2_control Development Team
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, RegisterEventHandler
+from launch.conditions import IfCondition
+from launch.event_handlers import OnProcessExit
+from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
+
+from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
+
+#lidarin lisäys
+from launch.actions import IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+
+
+def generate_launch_description():
+    # Declare arguments
+    declared_arguments = []
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "gui",
+            default_value="true",
+            description="Start RViz2 automatically with this launch file.",
+        )
+    )
+
+    # Initialize Arguments
+    gui = LaunchConfiguration("gui")
+
+    # Get URDF via xacro
+    robot_description_content = Command(
+        [
+            PathJoinSubstitution([FindExecutable(name="xacro")]),
+            " ",
+            PathJoinSubstitution(
+                [FindPackageShare("hoverboard_driver"), "urdf", "diffbot.urdf.xacro"]
+            ),
+        ]
+    )
+    robot_description = {"robot_description": robot_description_content}
+
+    robot_controllers = PathJoinSubstitution(
+        [
+            FindPackageShare("hoverboard_driver"),
+            "config",
+            "hoverboard_controllers.yaml",
+        ]
+    )
+
+    bno085_params = PathJoinSubstitution(
+        [
+            FindPackageShare("hoverboard_driver"),
+            "config",
+            "bno085_params.yaml",
+        ]
+    )
+
+   # rviz_config_file = PathJoinSubstitution(
+   #     [FindPackageShare("ros2_control_demo_description"), "diffbot/rviz", "diffbot.rviz"]
+   # )
+
+    control_node = Node(
+        package="controller_manager",
+        executable="ros2_control_node",
+        parameters=[robot_description, robot_controllers],
+        output="both",
+    )
+    robot_state_pub_node = Node(
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        output="both",
+        parameters=[robot_description],
+        #remappings=[
+        #    ("/hoverboard_base_controller/cmd_vel_unstamped", "/cmd_vel"),
+        #],
+    )
+    #rviz_node = Node(
+    #    package="rviz2",
+    #    executable="rviz2",
+    #    name="rviz2",
+    #    output="log",
+    #    arguments=["-d", rviz_config_file],
+    #    condition=IfCondition(gui),
+    #)
+
+    joint_state_broadcaster_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
+    )
+
+    robot_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["hoverboard_base_controller", "--controller-manager", "/controller_manager"],
+    )
+
+    # Delay rviz start after `joint_state_broadcaster`
+    #delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
+    #    event_handler=OnProcessExit(
+    #        target_action=joint_state_broadcaster_spawner,
+    #        on_exit=[rviz_node],
+    #    )
+    #)
+
+    # Delay start of robot_controller after `joint_state_broadcaster`
+    delay_robot_controller_spawner_after_joint_state_broadcaster_spawner = RegisterEventHandler(
+        event_handler=OnProcessExit(
+            target_action=joint_state_broadcaster_spawner,
+            on_exit=[robot_controller_spawner],
+        )
+    )
+
+# Lidarin lisäys
+    lidar_node = Node(
+        package='ldlidar_stl_ros2',
+        executable='ldlidar_stl_ros2_node',
+        name='LD06',
+        output='screen',
+        parameters=[
+            {'product_name': 'LDLiDAR_LD06'},
+            {'topic_name': 'scan'},
+            {'frame_id': 'lidar'},           # Vastaa URDF-mallisi linkkiä
+            {'port_name': '/dev/ttyAMA4'},   # Sinun toimivaksi toteama portti
+            {'port_baudrate': 230400},
+            {'laser_scan_dir': True},        # True = Vastapäivään (Counterclockwise)
+            {'enable_angle_crop_func': False}
+        ]
+    )
+
+# IMUn lisäys
+    imu_node = Node(
+        package='bno08x_driver',
+        executable='bno08x_driver', # Suoritettavan tiedoston nimi ajuripaketissa
+        name='bno08x_driver',
+        output='screen',
+        #emulate_tty=True,
+        parameters=[bno085_params],
+        #parameters=[{
+        #    'frame_id': 'imu_link',   # Vastaa URDF-mallisi linkkiä
+        #    'verbose': False,
+        #    'i2c': {
+        #        'enabled': True,
+        #        'bus': '/dev/i2c-1',
+        #        'address': '0x4A'
+        #    },
+        #    'publish': {
+        #        'magnetic_field': {
+        #            'enabled': True,
+        #            'rate': 100
+        #        },
+        #        'imu': {
+        #            'enabled': True,
+        #            'rate': 100,
+        #            'orientation_yaw_variance': 0.0075  # 5e-3 = 0.005 is default
+        #        }
+        #    }
+        #}],
+        remappings=[("imu", "imu/data"), ("magnetic_field","imu/mag")]
+    )
+
+    #ekf_config_path = PathJoinSubstitution(
+    #    [FindPackageShare("hoverboard_driver"), "config", "ekf.yaml"]
+    #)
+
+    #ekf_node = Node(
+    #    package='robot_localization',
+    #    executable='ekf_node',
+    #    name='ekf_filter_node',
+    #    output='screen',
+    #    parameters=[ekf_config_path]
+    #)
+
+    # TWIST_MUX (Liikennepoliisi) lisäys
+    twist_mux_params = PathJoinSubstitution(
+        [FindPackageShare("hoverboard_driver"), "config", "twist_mux.yaml"]
+    )
+
+    twist_mux_node = Node(
+        package="twist_mux",
+        executable="twist_mux",
+        name="twist_mux",
+        parameters=[twist_mux_params],
+        remappings=[('/cmd_vel_out', '/hoverboard_base_controller/cmd_vel')]
+    )
+
+    nodes = [
+        control_node,
+        robot_state_pub_node,
+        joint_state_broadcaster_spawner,
+       # delay_rviz_after_joint_state_broadcaster_spawner,
+        delay_robot_controller_spawner_after_joint_state_broadcaster_spawner,
+        lidar_node,
+        imu_node,
+        #ekf_node,
+        twist_mux_node,
+    ]
+
+    return LaunchDescription(declared_arguments + nodes)

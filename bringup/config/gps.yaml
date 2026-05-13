@@ -4,8 +4,8 @@ ublox_dgnss:
     #UART1_BAUDRATE: 115200 # Tarkista Ardusimplen baudrate (usein 115200 tai 460800)
     FRAME_ID: "gps_link"
     # Mittausnopeus 10Hz (100ms välein)
-    CFG_RATE_MEAS: 10
-    CFG_RATE_NAV: 100
+    CFG_RATE_MEAS: 100  # milliseconds between measurements (100ms = 10Hz)
+    CFG_RATE_NAV: 1     # navigation solutions per measurement cycle (always 1 for normal use)
     
     # Käsketään ajuria julkaisemaan standardit ROS-viestit
     publish:
@@ -19,14 +19,14 @@ ublox_dgnss:
     # Aktivoidaan viestit sirun sisältä USB-porttiin
     CFG_MSGOUT_UBX_NAV_PVT_USB: 1
     CFG_MSGOUT_UBX_NAV_HPPOSLLH_USB: 1
-    CFG_MSGOUT_UBX_NAV_STATUS_USB: 1
+    CFG_MSGOUT_UBX_NAV_STATUS_USB: 5
     CFG_MSGOUT_UBX_NAV_SAT_USB: 1
     CFG_MSGOUT_UBX_NAV_COV_USB: 1  # AKTIVOITU: Ilman tätä EKF ei tiedä tarkkuutta!
 
     # Protokollat
-    CFG_USBINPROT_RTCM3X: 1
-    CFG_USBINPROT_UBX: 1
-    CFG_USBINPROT_NMEA: 0
+    CFG_USBINPROT_RTCM3X: true
+    CFG_USBINPROT_UBX: true
+    CFG_USBINPROT_NMEA: false
 
     #CFG_USBOUTPROT_NMEA: False
     #CFG_MSGOUT_UBX_RXM_RTCM_USB: 1

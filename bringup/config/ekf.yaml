@@ -20,8 +20,8 @@ ekf_filter_node:
     odom0: /hoverboard_base_controller/odom
     odom0_config: [false, false, false,
                    false, false, false,
-                   true,  true, true,
-                   false, false, false, 
+                   true,  true, false,
+                   false, false, true, 
                    false, false, false]
 
         #        [x_pos   , y_pos    , z_pos,
@@ -180,8 +180,8 @@ ekf_global_node:
    
     odom0_config: [false, false, false,
                    false, false, false,
-                   true,  true, true,
-                   false, false, false, 
+                   true,  true, false,
+                   false, false, true, 
                    false, false, false]
     odom0_queue_size: 10
     
@@ -278,7 +278,7 @@ ekf_global_node:
 navsat_transform:
   ros__parameters:
     # Kuinka usein GPS-koordinaatit muunnetaan metrisiksi X/Y-koordinaateiksi.
-    frequency: 30.0
+    frequency: 50.0
     delay: 3.0
 
     # Magneettinen deklinaatio korjaa eron "magneettisen pohjoisnavan" (jota kompassi/IMU katsoo)

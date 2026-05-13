@@ -25,11 +25,9 @@ def generate_launch_description():
         executable='ublox_dgnss_node',
         name='ublox_dgnss',
         output='screen',  # Tulostaa lokit sekä terminaaliin että ROS-lokeihin
-        arguments=['--ros-args', '--log-level', 'WARN'],
-        #arguments=['--ros-args', '--log-level', 'INFO'],
+        #arguments=['--ros-args', '--log-level', 'WARN'],
+        arguments=['--ros-args', '--log-level', 'INFO'],
         parameters=[gps_config_path],
-        respawn=True,
-        respawn_delay=2.0,
         remappings=[
             # PERUSTELU: Jotta GPS saavuttaa senttimetritarkkuuden (RTK Fix), sen täytyy
             # saada korjausdataa (RTCM-viestejä) tukiasemalta. Ublox-ajuri kuuntelee oletuksena
@@ -72,52 +70,52 @@ def generate_launch_description():
         ]
     )
 
-    # --- Globaali EKF Node ---
-    # Tämä on järjestelmän "aivot" paikannuksen suhteen. Se kerää yhteen pyörien pyörimisen (odom0),
-    # IMUn kallistukset ja suunnan (imu0) sekä NavSat-muuntimelta tulevat metriset GPS-koordinaatit (odom1).
-    # Näistä se laskee optimaalisen, tarkan arvion robotin sijainnista ja julkaisee 'map -> odom' TF-muunnoksen.
-    ekf_global_node = Node(
-        package='robot_localization',
-        executable='ekf_node',
-        name='ekf_global_node',
-        output='screen',
-        parameters=[ekf_config_path],
-        remappings=[
-            # PERUSTELU: Oletuksena ekf_node julkaisee sijaintinsa topicciin '/odometry/filtered'.
-            # Koska paikallinen EKF (joka on jo diffbot.launch.py -tiedostossa) käyttää luultavasti
-            # tuota samaa oletusnimeä, nimeämme tämän tarkoituksella '/odometry/global'.
-            # Näin ROS2-verkossa ei tule ristiriitoja kahden eri EKF:n välillä.
-            ('odometry/filtered', '/odometry/global')
-        ]
-    )
+#    # --- Globaali EKF Node ---
+#    # Tämä on järjestelmän "aivot" paikannuksen suhteen. Se kerää yhteen pyörien pyörimisen (odom0),
+#    # IMUn kallistukset ja suunnan (imu0) sekä NavSat-muuntimelta tulevat metriset GPS-koordinaatit (odom1).
+#    # Näistä se laskee optimaalisen, tarkan arvion robotin sijainnista ja julkaisee 'map -> odom' TF-muunnoksen.
+#    ekf_global_node = Node(
+#        package='robot_localization',
+#        executable='ekf_node',
+#        name='ekf_global_node',
+#        output='screen',
+#        parameters=[ekf_config_path],
+#        remappings=[
+#            # PERUSTELU: Oletuksena ekf_node julkaisee sijaintinsa topicciin '/odometry/filtered'.
+#            # Koska paikallinen EKF (joka on jo diffbot.launch.py -tiedostossa) käyttää luultavasti
+#            # tuota samaa oletusnimeä, nimeämme tämän tarkoituksella '/odometry/global'.
+#            # Näin ROS2-verkossa ei tule ristiriitoja kahden eri EKF:n välillä.
+#            ('odometry/filtered', '/odometry/global')
+#        ]
+#    )
 
 
-    # --- NavSat Transform Node ---
-    # GPS puhuu kieltä WGS84 (pituuspiiri, leveyspiiri, korkeus), jota on hankala käyttää
-    # paikallisessa matematiikassa. Tämä solmu on kääntäjä: se ottaa GPS-koordinaatit
-    # ja muuntaa ne tavallisiksi X/Y -metreiksi "map"-koordinaatistossa.
-    navsat_transform_node = Node(
-        package='robot_localization',
-        executable='navsat_transform_node',
-        name='navsat_transform',
-        output='screen',
-        parameters=[ekf_config_path],
-        remappings=[
-            # PERUSTELU REMAPPIIN: 
-            # 1. NavSat tarvitsee IMU-dataa tietääkseen mihin suuntaan maapalloa robotti katsoo.
-            ('imu/data', '/imu/data'),
-
-            # 2. Se tarvitsee Ubloxin julkaiseman tarkan GPS-paikan (Lat/Lon).
-            ('gps/fix', '/ublox_dgnss/fix'), 
-
-            # 3. Se tarvitsee robotin *globaalin* sijainnin EKF:ltä (odometry/global), jotta se osaa 
-            # ankkuroida ensimmäisen GPS-pisteen oikein kartalle ja laskea muunnoksen.
-            # Oletuksena se kuuntelisi topicia 'odometry/filtered', mutta koska meillä on kaksi
-            # EKF:ää (paikallinen ja globaali), meidän on pakko spesifioida, että tämä käyttää globaalia.
-            ('odometry/filtered', '/odometry/global')
-            #('odometry/filtered', '/odometry/filtered')
-        ]
-    )
+#    # --- NavSat Transform Node ---
+#    # GPS puhuu kieltä WGS84 (pituuspiiri, leveyspiiri, korkeus), jota on hankala käyttää
+#    # paikallisessa matematiikassa. Tämä solmu on kääntäjä: se ottaa GPS-koordinaatit
+#    # ja muuntaa ne tavallisiksi X/Y -metreiksi "map"-koordinaatistossa.
+#    navsat_transform_node = Node(
+#        package='robot_localization',
+#        executable='navsat_transform_node',
+#        name='navsat_transform',
+#        output='screen',
+#        parameters=[ekf_config_path],
+#        remappings=[
+#            # PERUSTELU REMAPPIIN: 
+#            # 1. NavSat tarvitsee IMU-dataa tietääkseen mihin suuntaan maapalloa robotti katsoo.
+#            ('imu/data', '/imu/data'),
+#
+#            # 2. Se tarvitsee Ubloxin julkaiseman tarkan GPS-paikan (Lat/Lon).
+#            ('gps/fix', '/ublox_dgnss/fix'), 
+#
+#            # 3. Se tarvitsee robotin *globaalin* sijainnin EKF:ltä (odometry/global), jotta se osaa 
+#            # ankkuroida ensimmäisen GPS-pisteen oikein kartalle ja laskea muunnoksen.
+#            # Oletuksena se kuuntelisi topicia 'odometry/filtered', mutta koska meillä on kaksi
+#            # EKF:ää (paikallinen ja globaali), meidän on pakko spesifioida, että tämä käyttää globaalia.
+#            ('odometry/filtered', '/odometry/global')
+#            #('odometry/filtered', '/odometry/filtered')
+#        ]
+#    )
 
 
 
@@ -126,7 +124,7 @@ def generate_launch_description():
     return LaunchDescription([
         ublox_node,
         ntrip_node,
-        navsatfix_transform_node,
-        navsat_transform_node,
-        ekf_global_node
+        navsatfix_transform_node
+        #navsat_transform_node,
+        #ekf_global_node
     ])
