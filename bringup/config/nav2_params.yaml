@@ -80,7 +80,7 @@ controller_server:
     min_theta_velocity_threshold: 0.001
     failure_tolerance: 0.3
     progress_checker_plugins: ["progress_checker"]
-    goal_checker_plugins: ["goal_checker", "general_goal_checker", "precise_goal_checker"]
+    goal_checker_plugins: ["goal_checker", "general_goal_checker", "precise_goal_checker", "mowing_goal_checker"]
     # Default goal checker used when the BT does not specify one (Nav2 Jazzy default BT
     # leaves goal_checker_id empty; this value fills the gap).
     current_goal_checker: "goal_checker"
@@ -114,6 +114,17 @@ controller_server:
       plugin: "nav2_controller::SimpleGoalChecker"
       xy_goal_tolerance: 0.15
       yaw_goal_tolerance: 0.15
+    # Tight checker for mowing segment FollowPath calls.
+    # xy_goal_tolerance is intentionally set below RemovePassedGoalsSync's
+    # distance_threshold (0.35 m) so AreGoalsEmpty fires first — FollowPath
+    # success is the fallback, not the primary completion signal.
+    # The 0.10 m value also prevents premature success on near-closed-loop
+    # segments where early waypoints can be ~0.18 m from the final waypoint.
+    mowing_goal_checker:
+      stateful: True
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.10
+      yaw_goal_tolerance: 6.28  # ignore yaw — only position matters for mowing
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
       use_dynamic_window: true
