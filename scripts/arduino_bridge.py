@@ -40,12 +40,14 @@ class ArduinoBridge(Node):
         self.mowMotorCur_state = 0.0
         self.hoverBtnR1_state = 0
         self.varaReleR2_state = 0
+        self.lidarPWR_state = 0
 
         # --- TILAUKSET (Ohjaus käskyjä varten) ---
         self.create_subscription(Bool, 'mowMotorEN_cmd', self.mowMotorEN_callback, 10)
         self.create_subscription(Int32, 'mowMotorRPM_set_cmd', self.mowMotorRPM_set_callback, 10)
         self.create_subscription(Bool, 'hoverBtnR1_cmd', self.hoverBtnR1_callback, 10)
         self.create_subscription(Bool, 'varaReleR2_cmd', self.varaReleR2_callback, 10)
+        self.create_subscription(Bool, 'lidarPWR_cmd', self.lidarPWR_callback, 10)
         #self.create_subscription(Int32, 'motor_pwm_cmd', self.pwm_callback, 10)
         #self.create_subscription(Bool, 'rele1_cmd', self.rele1_callback, 10)
         #self.create_subscription(Bool, 'rele2_cmd', self.rele2_callback, 10)
@@ -66,6 +68,7 @@ class ArduinoBridge(Node):
         self.mowMotorCur_pub = self.create_publisher(Float32, 'mowMotorCur_status', 10)
         self.hoverBtnR1_pub = self.create_publisher(Bool, 'hoverBtnR1_status', 10)
         self.varaReleR2_pub = self.create_publisher(Bool, 'varaReleR2_status', 10)
+        self.lidarPWR_pub = self.create_publisher(Bool, 'lidarPWR_status', 10)
 
         # --- AJASTIN JA LUKUSÄIE ---
         self.timer = self.create_timer(0.1, self.send_to_arduino)
@@ -80,6 +83,7 @@ class ArduinoBridge(Node):
     def mowMotorRPM_set_callback(self, msg): self.mowMotorRpmSet_state = msg.data
     def hoverBtnR1_callback(self, msg): self.hoverBtnR1_state = 1 if msg.data else 0
     def varaReleR2_callback(self, msg): self.varaReleR2_state = 1 if msg.data else 0
+    def lidarPWR_callback(self, msg): self.lidarPWR_state = 1 if msg.data else 0
 
     def send_to_arduino(self):
         """Lähettää ohjauskomennot Arduinolle muodossa r1,r2,pwm\n"""
@@ -90,7 +94,7 @@ class ArduinoBridge(Node):
         effective_en = self.mowMotorEN_State
         if effective_en == 1 and self.mowMotorRpmSet_state == 0:
             effective_en = 0
-        cmd = f"{effective_en},{self.mowMotorRpmSet_state},{self.hoverBtnR1_state},{self.varaReleR2_state}\n"
+        cmd = f"{effective_en},{self.mowMotorRpmSet_state},{self.hoverBtnR1_state},{self.varaReleR2_state},{self.lidarPWR_state}\n"
         self.ser.write(cmd.encode('utf-8'))
 
     def read_from_arduino(self):
@@ -103,7 +107,7 @@ class ArduinoBridge(Node):
                         # Pilkotaan merkkijono pilkun kohdalta: "1,0,150" -> ["1", "0", "150"]
                         parts = line.split(',')
                         
-                        if len(parts) == 9:
+                        if len(parts) == 10:
                             # 0. eStop status
                             eStop_msg = Bool()
                             eStop_msg.data = bool(int(parts[0]))
@@ -148,6 +152,11 @@ class ArduinoBridge(Node):
                             varaReleR2_msg = Bool()
                             varaReleR2_msg.data = bool(int(parts[8]))
                             self.varaReleR2_pub.publish(varaReleR2_msg)
+
+                            # 9. Lidar virransyöttö status
+                            lidarPWR_msg = Bool()
+                            lidarPWR_msg.data = bool(int(parts[9]))
+                            self.lidarPWR_pub.publish(lidarPWR_msg)
 
                 except Exception as e:
                     self.get_logger().warn(f"Virhe datan lukemisessa: {e}")

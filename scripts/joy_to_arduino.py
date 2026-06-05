@@ -16,6 +16,7 @@ class JoyToArduino(Node):
         self.declare_parameter('mowRpmSET_value', 100)
         self.declare_parameter('hoverBtnR1_button', 7)
         self.declare_parameter('varaReleR2_button', 6)
+        self.declare_parameter('lidarPWR_button', 3)
 
         # Haetaan arvot (esim. action_button = 3)
         #self.btn_idx = self.get_parameter('action_button').value
@@ -24,6 +25,7 @@ class JoyToArduino(Node):
         self.mowRpmSET_val = self.get_parameter('mowRpmSET_value').value
         self.hoverBtnR1_idx = self.get_parameter('hoverBtnR1_button').value
         self.varaReleR2_idx = self.get_parameter('varaReleR2_button').value
+        self.lidarPWR_idx = self.get_parameter('lidarPWR_button').value
 
         self.add_on_set_parameters_callback(self.parameter_callback)
 
@@ -31,6 +33,8 @@ class JoyToArduino(Node):
         # on state CHANGES (edge-triggered).  Publishing false on every joystick
         # tick at joystick rate drowns out the autonomous keep-alive signal.
         self._prev_mowEn = False
+        self._prev_lidarPWR = False
+        self._lidarPWR_state = False
 
         # Julkaisijat
         #self.rele1_pub = self.create_publisher(Bool, 'rele1_cmd', 10)
@@ -40,6 +44,7 @@ class JoyToArduino(Node):
         self.mowMotorRpmSET_pub = self.create_publisher(Int32, 'mowMotorRPM_set_cmd', 10)
         self.hoverBtnR1_pub = self.create_publisher(Bool, 'hoverBtnR1_cmd', 10)
         self.varaReleR2_pub = self.create_publisher(Bool, 'varaReleR2_cmd', 10)
+        self.lidarPWR_pub = self.create_publisher(Bool, 'lidarPWR_cmd', 10)
 
         # Tilaaja ohjaimen raakadatalle (/joy)
         self.subscription = self.create_subscription(Joy, 'joy', self.joy_callback, 10)
@@ -64,6 +69,10 @@ class JoyToArduino(Node):
             elif param.name == 'varaReleR2_button':
                 self.varaReleR2_idx = param.value
                 self.get_logger().info(f"Päivitetty varaReleR2_button: {param.value}")
+
+            elif param.name == 'lidarPWR_button':
+                self.lidarPWR_idx = param.value
+                self.get_logger().info(f"Päivitetty lidarPWR_button: {param.value}")
         
         return SetParametersResult(successful=True)
 
@@ -77,6 +86,7 @@ class JoyToArduino(Node):
             mowEn_is_pressed = (msg.buttons[self.mowEnable_idx] == 1)
             hoverBtnR1_is_pressed = (msg.buttons[self.hoverBtnR1_idx] == 1)
             varaReleR2_is_pressed = (msg.buttons[self.varaReleR2_idx] == 1)
+            lidarPWR_is_pressed = (msg.buttons[self.lidarPWR_idx] == 1)
 
             # Mow motor: only publish when button state changes so we don't
             # flood the topic with false and override the autonomous keep-alive.
@@ -94,6 +104,15 @@ class JoyToArduino(Node):
 
             varaReleR2_msg = Bool()
             varaReleR2_msg.data = varaReleR2_is_pressed
+
+            # lidarPWR: toggle on rising edge (press, not hold)
+            if lidarPWR_is_pressed and not self._prev_lidarPWR:
+                self._lidarPWR_state = not self._lidarPWR_state
+                lidarPWR_msg = Bool()
+                lidarPWR_msg.data = self._lidarPWR_state
+                self.lidarPWR_pub.publish(lidarPWR_msg)
+                self.get_logger().info(f"lidarPWR toggled: {self._lidarPWR_state}")
+            self._prev_lidarPWR = lidarPWR_is_pressed
 
             # Julkaistaan viestit ROS2-verkkoon
             self.hoverBtnR1_pub.publish(hoverBtnR1_msg)
