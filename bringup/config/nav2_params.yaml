@@ -154,7 +154,7 @@ controller_server:
       # PAIKALLAAN KÄÄNTYMINEN (Tärkein osa diff-robotille)
       use_rotate_to_heading: true # false allows to follow coverage path better in sharper turns
       allow_reversing: false
-      rotate_to_heading_min_angle: 0.785 # 45 astetta radiaaneina
+      rotate_to_heading_min_angle: 0.4 #0.785 # 45 astetta radiaaneina
       max_angular_accel: 4.0    #The maximum angular acceleration (rad/s^2) to use.
       max_angular_decel: -4.0   #The maximum angular deceleration (rad/s^2) used when use_dynamic_window is true.
       max_angular_vel: 4.0      #The maximum angular velocity (rad/s) used when use_dynamic_window is true.

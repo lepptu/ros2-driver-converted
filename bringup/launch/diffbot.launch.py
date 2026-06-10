@@ -137,7 +137,8 @@ def generate_launch_description():
             {'port_name': '/dev/ttyAMA4'},   # Sinun toimivaksi toteama portti
             {'port_baudrate': 230400},
             {'laser_scan_dir': True},        # True = Vastapäivään (Counterclockwise)
-            {'enable_angle_crop_func': False}
+            {'enable_angle_crop_func': False},
+            {'power_topic_name': 'lidarPWR_status'},
         ]
     )
 
