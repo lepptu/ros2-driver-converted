@@ -102,18 +102,18 @@ controller_server:
     goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
+      xy_goal_tolerance: 0.12 #alkuperäinen 0.25
+      yaw_goal_tolerance: 0.12 #alkuperäinen 0.25
     general_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
+      xy_goal_tolerance: 0.12 #alkuperäinen 0.25
+      yaw_goal_tolerance: 0.12 #alkuperäinen 0.25
     precise_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.15
-      yaw_goal_tolerance: 0.15
+      xy_goal_tolerance: 0.10 #alkuperäinen 0.15
+      yaw_goal_tolerance: 0.10 #alkuperäinen 0.15
     # Tight checker for mowing segment FollowPath calls.
     # xy_goal_tolerance is intentionally set below RemovePassedGoalsSync's
     # distance_threshold (0.35 m) so AreGoalsEmpty fires first — FollowPath
@@ -123,7 +123,7 @@ controller_server:
     mowing_goal_checker:
       stateful: True
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.10
+      xy_goal_tolerance: 0.08 #alkuperäinen 0.10
       yaw_goal_tolerance: 6.28  # ignore yaw — only position matters for mowing
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
@@ -154,7 +154,7 @@ controller_server:
       # PAIKALLAAN KÄÄNTYMINEN (Tärkein osa diff-robotille)
       use_rotate_to_heading: true # false allows to follow coverage path better in sharper turns
       allow_reversing: false
-      rotate_to_heading_min_angle: 0.4 #0.785 # 45 astetta radiaaneina
+      rotate_to_heading_min_angle: 0.785 #0.4 = 23 astetta # 45 astetta radiaaneina
       max_angular_accel: 4.0    #The maximum angular acceleration (rad/s^2) to use.
       max_angular_decel: -4.0   #The maximum angular deceleration (rad/s^2) used when use_dynamic_window is true.
       max_angular_vel: 4.0      #The maximum angular velocity (rad/s) used when use_dynamic_window is true.
