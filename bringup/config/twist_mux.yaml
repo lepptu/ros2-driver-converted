@@ -14,3 +14,7 @@ twist_mux:
         topic   : cmd_vel_foxglove
         timeout : 0.5
         priority: 50
+      web:                          # web UI drive pad via mowbot_mqtt_bridge
+        topic   : cmd_vel_web       # joystick 100 > web 75 > foxglove 50 > nav 10
+        timeout : 0.5               # deadman: browser/WiFi/broker death stops in 0.5 s
+        priority: 75

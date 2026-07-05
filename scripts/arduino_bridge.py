@@ -42,10 +42,17 @@ class ArduinoBridge(Node):
         self.varaReleR2_state = 0
         self.lidarPWR_state = 0
 
+        # Kesto (s) jonka hoverBtnR1 pidetään päällä yhdellä "pulssilla"
+        self.hoverBtnR1_pulse_duration = 0.2
+        # Yhden laukauksen ajastin, joka palauttaa napin alas pulssin jälkeen
+        self.hoverBtnR1_pulse_timer = None
+
         # --- TILAUKSET (Ohjaus käskyjä varten) ---
         self.create_subscription(Bool, 'mowMotorEN_cmd', self.mowMotorEN_callback, 10)
         self.create_subscription(Int32, 'mowMotorRPM_set_cmd', self.mowMotorRPM_set_callback, 10)
         self.create_subscription(Bool, 'hoverBtnR1_cmd', self.hoverBtnR1_callback, 10)
+        # Pulssi-tilaus: yksi True painallus -> hoverBtnR1 päälle 0.2 s ajaksi
+        self.create_subscription(Bool, 'hoverBtnR1_pulse', self.hoverBtnR1_pulse_callback, 10)
         self.create_subscription(Bool, 'varaReleR2_cmd', self.varaReleR2_callback, 10)
         self.create_subscription(Bool, 'lidarPWR_cmd', self.lidarPWR_callback, 10)
         #self.create_subscription(Int32, 'motor_pwm_cmd', self.pwm_callback, 10)
@@ -82,6 +89,31 @@ class ArduinoBridge(Node):
     def mowMotorEN_callback(self, msg): self.mowMotorEN_State = 1 if msg.data else 0
     def mowMotorRPM_set_callback(self, msg): self.mowMotorRpmSet_state = msg.data
     def hoverBtnR1_callback(self, msg): self.hoverBtnR1_state = 1 if msg.data else 0
+
+    def hoverBtnR1_pulse_callback(self, msg):
+        """Painikkeen pulssi: nostaa hoverBtnR1:n ylös ja laskee sen alas
+        0.2 s kuluttua. Uusi painallus aloittaa pulssin ajan alusta.
+        Ajetaan rclpy:n yksisäikeisellä executorilla, joten ei kilpaile
+        send_to_arduino()-ajastimen kanssa."""
+        if not msg.data:
+            return
+        self.hoverBtnR1_state = 1
+        # Nollaa mahdollinen aiempi pulssi-ajastin ennen uuden käynnistämistä
+        if self.hoverBtnR1_pulse_timer is not None:
+            self.hoverBtnR1_pulse_timer.cancel()
+            self.destroy_timer(self.hoverBtnR1_pulse_timer)
+        self.hoverBtnR1_pulse_timer = self.create_timer(
+            self.hoverBtnR1_pulse_duration, self._end_hoverBtnR1_pulse)
+
+    def _end_hoverBtnR1_pulse(self):
+        """Yhden laukauksen ajastimen callback: laskee napin alas ja
+        tuhoaa ajastimen (rclpy:n ajastimet ovat muuten jaksollisia)."""
+        self.hoverBtnR1_state = 0
+        if self.hoverBtnR1_pulse_timer is not None:
+            self.hoverBtnR1_pulse_timer.cancel()
+            self.destroy_timer(self.hoverBtnR1_pulse_timer)
+            self.hoverBtnR1_pulse_timer = None
+
     def varaReleR2_callback(self, msg): self.varaReleR2_state = 1 if msg.data else 0
     def lidarPWR_callback(self, msg): self.lidarPWR_state = 1 if msg.data else 0
 
