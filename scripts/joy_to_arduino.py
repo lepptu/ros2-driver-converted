@@ -48,6 +48,11 @@ class JoyToArduino(Node):
 
         # Tilaaja ohjaimen raakadatalle (/joy)
         self.subscription = self.create_subscription(Joy, 'joy', self.joy_callback, 10)
+
+        # Keep-alive: arduino_bridge sammuttaa terän jos mowMotorEN_cmd-komennot
+        # lakkaavat (~1.5 s vahtikoira), joten napin ollessa pohjassa tila
+        # julkaistaan uudelleen 2 Hz — sama tahti kuin autonomisella ajolla.
+        self.mow_keepalive_timer = self.create_timer(0.5, self._mow_keepalive)
         
         self.get_logger().info(f"Kuunnellaan /joy topicia. Nappi indeksissä {self.mowEnable_idx} aktivoi leikkausmoottorin.")
 
@@ -76,6 +81,18 @@ class JoyToArduino(Node):
         
         return SetParametersResult(successful=True)
 
+
+    def _mow_keepalive(self):
+        """Julkaisee terän enable+rpm uudelleen niin kauan kuin nappi on
+        pohjassa. RPM ennen enablea samasta syystä kuin MowMotorController:
+        arduino_bridge ei saa nähdä enable=1 ilman rpm-asetusarvoa."""
+        if self._prev_mowEn:
+            rpm_msg = Int32()
+            rpm_msg.data = self.mowRpmSET_val
+            self.mowMotorRpmSET_pub.publish(rpm_msg)
+            en_msg = Bool()
+            en_msg.data = True
+            self.mowMotorEN_pub.publish(en_msg)
 
     def joy_callback(self, msg):
         # Varmistetaan ensin, että taulukossa on tarpeeksi alkioita, jottei ohjelma kaadu

@@ -42,6 +42,18 @@ class ArduinoBridge(Node):
         self.varaReleR2_state = 0
         self.lidarPWR_state = 0
 
+        # --- LEIKKUUMOOTTORIN VAHTIKOIRA ---
+        # Komentajat (MowMotorController, joy_to_arduino) julkaisevat
+        # mowMotorEN_cmd:tä 2 Hz keep-alivena. Jos komennot lakkaavat
+        # (mission-node kaatui/kill -9, executor jumissa, WiFi poikki),
+        # terä sammutetaan sen sijaan että viimeistä enable=1-tilaa
+        # toistettaisiin Arduinolle ikuisesti. 1.5 s = 3 väliin jäänyttä
+        # keep-alivea.
+        self.declare_parameter('mow_cmd_timeout_s', 1.5)
+        self.mow_cmd_timeout = self.get_parameter('mow_cmd_timeout_s').value
+        self.last_mowEN_cmd_time = None
+        self.mow_watchdog_tripped = False
+
         # Kesto (s) jonka hoverBtnR1 pidetään päällä yhdellä "pulssilla"
         self.hoverBtnR1_pulse_duration = 0.2
         # Yhden laukauksen ajastin, joka palauttaa napin alas pulssin jälkeen
@@ -86,7 +98,14 @@ class ArduinoBridge(Node):
     #def hoverBtnR1_callback(self, msg): self.hoverBtnR1_state = 1 if msg.data else 0
     #def varaReleR2_callback(self, msg): self.varaReleR2_state = 1 if msg.data else 0
     #def pwm_callback(self, msg): self.pwm_state = msg.data
-    def mowMotorEN_callback(self, msg): self.mowMotorEN_State = 1 if msg.data else 0
+    def mowMotorEN_callback(self, msg):
+        self.mowMotorEN_State = 1 if msg.data else 0
+        self.last_mowEN_cmd_time = time.monotonic()
+        if self.mow_watchdog_tripped and msg.data:
+            self.get_logger().info(
+                "mowMotorEN vahtikoira: komennot palasivat — terä sallitaan taas")
+        self.mow_watchdog_tripped = False
+
     def mowMotorRPM_set_callback(self, msg): self.mowMotorRpmSet_state = msg.data
     def hoverBtnR1_callback(self, msg): self.hoverBtnR1_state = 1 if msg.data else 0
 
@@ -119,6 +138,18 @@ class ArduinoBridge(Node):
 
     def send_to_arduino(self):
         """Lähettää ohjauskomennot Arduinolle muodossa r1,r2,pwm\n"""
+        # Vahtikoira: sammuta terä jos enable-komentoja ei ole kuulunut
+        # mow_cmd_timeout_s sekuntiin (komentaja kuollut tai yhteys poikki).
+        if self.mowMotorEN_State == 1:
+            if (self.last_mowEN_cmd_time is None or
+                    time.monotonic() - self.last_mowEN_cmd_time > self.mow_cmd_timeout):
+                if not self.mow_watchdog_tripped:
+                    self.mow_watchdog_tripped = True
+                    self.get_logger().error(
+                        f"mowMotorEN vahtikoira: ei komentoja {self.mow_cmd_timeout} s "
+                        "— terä sammutetaan")
+                self.mowMotorEN_State = 0
+
         # Guard: don't enable the motor if the RPM setpoint hasn't arrived yet.
         # The enable and RPM commands come from two separate ROS2 topics so the
         # enable callback can fire before the RPM callback, which would start the
