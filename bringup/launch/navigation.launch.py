@@ -134,7 +134,18 @@ def generate_launch_description():
         ]
     )
 
+    # N4 (BT_REVIEW): publishes the KeepoutFilter mask from mow-area holes +
+    # web-drawn keepout zones. Lives with the costmaps so the filter always
+    # has its inputs, mission running or not.
+    keepout_mask_node = Node(
+        package='mowing_navigation',
+        executable='keepout_mask_publisher',
+        name='keepout_mask_publisher',
+        output='screen',
+    )
+
     return LaunchDescription([
         nav2_container,
-        load_composable_nodes
+        load_composable_nodes,
+        keepout_mask_node,
     ])

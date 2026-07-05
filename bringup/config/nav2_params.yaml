@@ -271,7 +271,17 @@ local_costmap:
       footprint: "[ [0.52, 0.255], [0.52, -0.255], [-0.15, -0.255], [-0.15, 0.255] ]"
       # R11: bumper marking lives in its own layer so LiDAR-off mode can
       # disable obstacle_layer wholesale while contact obstacles keep working.
-      plugins: ["obstacle_layer", "bumper_layer", "inflation_layer"]
+      # N4: keepout_static consumes /keepout_filter_mask (area holes +
+      # web-drawn keepout zones) as a static layer — a costmap FILTER only
+      # paints within each cycle's update bounds and never reached far cells;
+      # the static layer paints everywhere, survives clears, and inflates.
+      plugins: ["keepout_static", "obstacle_layer", "bumper_layer", "inflation_layer"]
+      keepout_static:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        enabled: True
+        map_topic: /keepout_filter_mask
+        map_subscribe_transient_local: True
+        subscribe_to_updates: False
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
@@ -375,8 +385,14 @@ global_costmap:
       footprint: "[ [0.52, 0.255], [0.52, -0.255], [-0.15, -0.255], [-0.15, 0.255] ]"
       resolution: 0.1 #0.05
       track_unknown_space: false #true
-      plugins: ["obstacle_layer", "bumper_layer", "inflation_layer"]
+      plugins: ["keepout_static", "obstacle_layer", "bumper_layer", "inflation_layer"]
       #plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      keepout_static:              # N4 — see local_costmap notes
+        plugin: "nav2_costmap_2d::StaticLayer"
+        enabled: True
+        map_topic: /keepout_filter_mask
+        map_subscribe_transient_local: True
+        subscribe_to_updates: False
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
