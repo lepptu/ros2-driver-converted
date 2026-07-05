@@ -269,11 +269,13 @@ local_costmap:
       resolution: 0.1 #0.05
       #robot_radius: 0.5
       footprint: "[ [0.52, 0.255], [0.52, -0.255], [-0.15, -0.255], [-0.15, 0.255] ]"
-      plugins: ["obstacle_layer", "inflation_layer"] #["voxel_layer", "inflation_layer"]
+      # R11: bumper marking lives in its own layer so LiDAR-off mode can
+      # disable obstacle_layer wholesale while contact obstacles keep working.
+      plugins: ["obstacle_layer", "bumper_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        observation_sources: scan bumper
+        observation_sources: scan
         scan:
           topic: /scan               # Varmista, että Lidarisi julkaisee tähän topicciin
           max_obstacle_height: 1.0
@@ -284,13 +286,22 @@ local_costmap:
           raytrace_min_range: 0.2
           obstacle_max_range: 3.5    # Kuinka kaukaa esteet piirretään kartalle
           obstacle_min_range: 0.2
-        # BT_REVIEW R10: synthetic bumper-contact obstacles from
-        # bumper_obstacle_publisher. marking-only — LiDAR clearing must not
-        # erase a contact obstacle it cannot see; the publisher re-marks at
-        # 1 Hz for bumper_obstacle_persistence_s and then goes silent.
-        # obstacle_max_range is huge on purpose: the cloud is in the odom
-        # frame, so the "sensor origin" is the odom origin — a normal range
-        # cap would drop marks far from home.
+          # R11: a silent LiDAR (died unexpectedly while the layer is
+          # enabled) makes the layer not-current -> Nav2 stops instead of
+          # driving blind on stale obstacles. Deliberate LiDAR-off flips
+          # obstacle_layer.enabled instead (mowparams lidar_enabled).
+          expected_update_rate: 1.0
+      # BT_REVIEW R10: synthetic bumper-contact obstacles from
+      # bumper_obstacle_publisher. marking-only — LiDAR clearing must not
+      # erase a contact obstacle it cannot see; the publisher re-marks at
+      # 1 Hz for bumper_obstacle_persistence_s and then goes silent.
+      # obstacle_max_range is huge on purpose: the cloud is in the odom
+      # frame, so the "sensor origin" is the odom origin — a normal range
+      # cap would drop marks far from home.
+      bumper_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        observation_sources: bumper
         bumper:
           topic: /bumper_obstacle_cloud
           max_obstacle_height: 1.0
@@ -364,12 +375,12 @@ global_costmap:
       footprint: "[ [0.52, 0.255], [0.52, -0.255], [-0.15, -0.255], [-0.15, 0.255] ]"
       resolution: 0.1 #0.05
       track_unknown_space: false #true
-      plugins: ["obstacle_layer", "inflation_layer"]
+      plugins: ["obstacle_layer", "bumper_layer", "inflation_layer"]
       #plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        observation_sources: scan bumper
+        observation_sources: scan
         scan:
           topic: /scan
           max_obstacle_height: 2.0
@@ -380,7 +391,13 @@ global_costmap:
           raytrace_min_range: 0.0
           obstacle_max_range: 2.5
           obstacle_min_range: 0.0
-        # BT_REVIEW R10: bumper-contact obstacles (see local_costmap notes).
+          expected_update_rate: 1.0   # R11 — see local_costmap notes
+      # BT_REVIEW R10/R11: bumper-contact obstacles in their own layer so
+      # LiDAR-off mode keeps them (see local_costmap notes).
+      bumper_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
+        observation_sources: bumper
         bumper:
           topic: /bumper_obstacle_cloud
           max_obstacle_height: 1.0
