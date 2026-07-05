@@ -128,7 +128,10 @@ controller_server:
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
       use_dynamic_window: true
-      max_linear_vel: 0.3
+      # BT_REVIEW N11: this is the CEILING, not the working speed. The mission
+      # node publishes a nav2 SpeedLimit (mowing_speed_mps param, web-UI
+      # slider) that caps below this value — SpeedLimit can never raise it.
+      max_linear_vel: 0.4
       min_linear_vel: -0.3        #The minimum linear velocity (m/s) used when use_dynamic_window is true.
       max_linear_accel: 0.3      #The maximum linear acceleration (m/s^2) used when use_dynamic_window is true.
       max_linear_decel: -0.3      #The maximum linear deceleration (m/s^2) used when use_dynamic_window is true.
