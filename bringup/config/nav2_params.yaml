@@ -271,17 +271,13 @@ local_costmap:
       footprint: "[ [0.52, 0.255], [0.52, -0.255], [-0.15, -0.255], [-0.15, 0.255] ]"
       # R11: bumper marking lives in its own layer so LiDAR-off mode can
       # disable obstacle_layer wholesale while contact obstacles keep working.
-      # N4: keepout_static consumes /keepout_filter_mask (area holes +
-      # web-drawn keepout zones) as a static layer — a costmap FILTER only
-      # paints within each cycle's update bounds and never reached far cells;
-      # the static layer paints everywhere, survives clears, and inflates.
-      plugins: ["keepout_static", "obstacle_layer", "bumper_layer", "inflation_layer"]
-      keepout_static:
-        plugin: "nav2_costmap_2d::StaticLayer"
-        enabled: True
-        map_topic: /keepout_filter_mask
-        map_subscribe_transient_local: True
-        subscribe_to_updates: False
+      # F16/K1: NO keepout_static here — keepout lives on the GLOBAL costmap
+      # only. Field round 6: zones/holes on the local costmap made RPP
+      # collision-veto every hole-adjacent mowing lane (lanes run 0.2 m from
+      # hole edges, inside the keepout inflation) and froze the robot. The
+      # global planner still routes transits/detours around zones; the
+      # controller must stay free to follow the lanes and the planned arcs.
+      plugins: ["obstacle_layer", "bumper_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
