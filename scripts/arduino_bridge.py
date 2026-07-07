@@ -42,7 +42,7 @@ class ArduinoBridge(Node):
         self.varaReleR2_state = 0
         self.lidarPWR_state = 0
 
-        # --- LEIKKUUMOOTTORIN VAHTIKOIRA ---
+        # --- LEIKKUUMOOTTORIN WATCHDOG ---
         # Komentajat (MowMotorController, joy_to_arduino) julkaisevat
         # mowMotorEN_cmd:tä 2 Hz keep-alivena. Jos komennot lakkaavat
         # (mission-node kaatui/kill -9, executor jumissa, WiFi poikki),
@@ -103,7 +103,7 @@ class ArduinoBridge(Node):
         self.last_mowEN_cmd_time = time.monotonic()
         if self.mow_watchdog_tripped and msg.data:
             self.get_logger().info(
-                "mowMotorEN vahtikoira: komennot palasivat — terä sallitaan taas")
+                "mowMotorEN watchdog: commands resumed — blade allowed again")
         self.mow_watchdog_tripped = False
 
     def mowMotorRPM_set_callback(self, msg): self.mowMotorRpmSet_state = msg.data
@@ -138,7 +138,7 @@ class ArduinoBridge(Node):
 
     def send_to_arduino(self):
         """Lähettää ohjauskomennot Arduinolle muodossa r1,r2,pwm\n"""
-        # Vahtikoira: sammuta terä jos enable-komentoja ei ole kuulunut
+        # Watchdog: sammuta terä jos enable-komentoja ei ole kuulunut
         # mow_cmd_timeout_s sekuntiin (komentaja kuollut tai yhteys poikki).
         if self.mowMotorEN_State == 1:
             if (self.last_mowEN_cmd_time is None or
@@ -146,8 +146,8 @@ class ArduinoBridge(Node):
                 if not self.mow_watchdog_tripped:
                     self.mow_watchdog_tripped = True
                     self.get_logger().error(
-                        f"mowMotorEN vahtikoira: ei komentoja {self.mow_cmd_timeout} s "
-                        "— terä sammutetaan")
+                        f"mowMotorEN watchdog: no commands for {self.mow_cmd_timeout} s "
+                        "— blade shut off")
                 self.mowMotorEN_State = 0
 
         # Guard: don't enable the motor if the RPM setpoint hasn't arrived yet.

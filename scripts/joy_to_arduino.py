@@ -50,7 +50,7 @@ class JoyToArduino(Node):
         self.subscription = self.create_subscription(Joy, 'joy', self.joy_callback, 10)
 
         # Keep-alive: arduino_bridge sammuttaa terän jos mowMotorEN_cmd-komennot
-        # lakkaavat (~1.5 s vahtikoira), joten napin ollessa pohjassa tila
+        # lakkaavat (~1.5 s watchdog), joten napin ollessa pohjassa tila
         # julkaistaan uudelleen 2 Hz — sama tahti kuin autonomisella ajolla.
         self.mow_keepalive_timer = self.create_timer(0.5, self._mow_keepalive)
         
