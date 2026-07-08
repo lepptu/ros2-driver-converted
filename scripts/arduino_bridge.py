@@ -54,6 +54,16 @@ class ArduinoBridge(Node):
         self.last_mowEN_cmd_time = None
         self.mow_watchdog_tripped = False
 
+        # --- E-STOP TERÄPORTTI (F30) ---
+        # E-stop on pelkkä signaali (Arduinon status-framen parts[0]); mikään
+        # Arduino->moottori-polulla ei pakota sitä. Portataan terä pois täällä
+        # niin, että e-stop pysäyttää KAIKKI komentajat (myös gamepadin, jolla
+        # ei ole omaa ohjelmistoporttia). Salpa pitää terän pois päältä myös
+        # e-stopin vapautuksen jälkeen, kunnes komentaja on nähty laskevan
+        # enablen alas — pohjassa pidetty gamepad-nappi ei siis käynnistä terää
+        # itsestään vapautusreunalla.
+        self.estop_blade_latched = False
+
         # Kesto (s) jonka hoverBtnR1 pidetään päällä yhdellä "pulssilla"
         self.hoverBtnR1_pulse_duration = 0.2
         # Yhden laukauksen ajastin, joka palauttaa napin alas pulssin jälkeen
@@ -157,6 +167,31 @@ class ArduinoBridge(Node):
         effective_en = self.mowMotorEN_State
         if effective_en == 1 and self.mowMotorRpmSet_state == 0:
             effective_en = 0
+
+        # F30: e-stop blade gate — backstop that forces the blade off for
+        # EVERY commander while the e-stop is active, and LATCHES it off after
+        # release until the commander drops enable, so a gamepad button held
+        # through an e-stop cycle can't restart the blade on release. The
+        # mission and web-UI manager publish mowMotorEN_cmd:false on e-stop
+        # themselves, so their latch clears instantly and their resume flows
+        # are unchanged.
+        if self.eStop_state == 1:
+            if not self.estop_blade_latched:
+                self.estop_blade_latched = True
+                self.get_logger().warn(
+                    "mowMotorEN e-stop gate: e-stop active — blade blocked")
+            effective_en = 0
+        elif self.estop_blade_latched:
+            # E-stop released but still latched: keep the blade off until the
+            # commander has been seen to drop enable (explicit false, or the
+            # keep-alive watchdog above setting mowMotorEN_State = 0).
+            if self.mowMotorEN_State == 0:
+                self.estop_blade_latched = False
+                self.get_logger().info(
+                    "mowMotorEN e-stop gate: cleared — enable released")
+            else:
+                effective_en = 0
+
         cmd = f"{effective_en},{self.mowMotorRpmSet_state},{self.hoverBtnR1_state},{self.varaReleR2_state},{self.lidarPWR_state}\n"
         self.ser.write(cmd.encode('utf-8'))
 
@@ -172,6 +207,9 @@ class ArduinoBridge(Node):
                         
                         if len(parts) == 10:
                             # 0. eStop status
+                            # F30: store the state so send_to_arduino's e-stop
+                            # blade gate can act on it, not just republish it.
+                            self.eStop_state = int(parts[0])
                             eStop_msg = Bool()
                             eStop_msg.data = bool(int(parts[0]))
                             self.eStop_pub.publish(eStop_msg)

@@ -18,3 +18,16 @@ twist_mux:
         topic   : cmd_vel_web       # joystick 100 > web 75 > foxglove 50 > nav 10
         timeout : 0.5               # deadman: browser/WiFi/broker death stops in 0.5 s
         priority: 75
+    # F31: e-stop motion gate. One lock above every input silences ALL
+    # velocity sources (joystick 100, web 75, foxglove 50, nav 10) at a single
+    # choke point when the e-stop is pressed. std_msgs/Bool from arduino_bridge;
+    # data:true (pressed) engages the lock. timeout:1.0 doubles as a deadman on
+    # the e-stop telemetry itself: if eStop_status goes silent >1 s
+    # (arduino_bridge dead / serial unplugged) the lock engages and manual
+    # motion is refused — the safe direction, matching the BT's IsEstopClear
+    # missing-telemetry stance. arduino_bridge publishes ~10 Hz, so 10x margin.
+    locks:
+      estop:
+        topic   : eStop_status
+        timeout : 1.0
+        priority: 255

@@ -1,6 +1,11 @@
 # Plan: E-stop must stop the blade for EVERY commander (arduino_bridge gate)
 
-> Status: **DRAFT — no code changes yet.** Field-found 2026-07-08.
+> Status: **IMPLEMENTED 2026-07-08 (bench, awaiting field test)** — code in
+> `scripts/arduino_bridge.py`. Field-found 2026-07-08. Latch state-machine
+> unit-simulated for all four test-plan scenarios (gamepad held-through,
+> web/mission instant clear, watchdog fallback, no-blade e-stop). Deploy:
+> `mowbot-launch-bringup` restart (symlink-installed, no rebuild). **User owes
+> the field test below + the bringup restart.**
 >
 > Location rationale: the fix lives in `scripts/arduino_bridge.py` in THIS
 > repo — the single choke point every blade command already passes through.
