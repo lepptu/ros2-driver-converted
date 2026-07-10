@@ -88,10 +88,16 @@ controller_server:
     use_realtime_priority: false
 
     # Progress checker parameters
+    # F34 (field round 13): SimpleProgressChecker (0.5 m / 10 s, displacement
+    # only) false-aborted FollowPath on turn-heavy short mowing lines —
+    # rotation did not count as progress. PoseProgressChecker also counts
+    # rotation (required_movement_angle). All three values are dynamic params,
+    # live-tunable from the web UI (mission node forwards them, F24 pattern).
     progress_checker:
-      plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.5
-      movement_time_allowance: 10.0
+      plugin: "nav2_controller::PoseProgressChecker"
+      required_movement_radius: 0.25
+      required_movement_angle: 0.5
+      movement_time_allowance: 15.0
     # Goal checker parameters
     #precise_goal_checker:
     #  plugin: "nav2_controller::SimpleGoalChecker"
@@ -367,8 +373,14 @@ global_costmap:
       transform_tolerance: 1.0
       update_frequency: 1.0
       publish_frequency: 1.0
-      global_frame: odom
-      #global_frame: map
+      # F32 (field round 13): map, per REP-105 (bt_navigator already runs map).
+      # With odom, the fixed 100x100 @ (-50,-50) window (datum-anchored, i.e.
+      # map-designed) could lose part of the yard depending on boot pose —
+      # planner then failed every transit "outside bounds" and F6 skipped the
+      # whole route. keepout_mask_publisher's costmap_frame default moved to
+      # map with this; flip BOTH back to odom for the Option-B fallback.
+      global_frame: map
+      #global_frame: odom
       robot_base_frame: base_link
 
       rolling_window: false #true
