@@ -1,54 +1,91 @@
-# ROS2_CONTROL for Hoverboard Driver based on DiffBot
-This is a ros2_control hardware interface implementation for Hoverboard Driver based on ros2_control DiffBot example.
+# ros2-driver-converted (`hoverboard_driver`)
 
-Find the documentation in [doc/userdoc.rst](doc/userdoc.rst) or on [control.ros.org](https://control.ros.org/master/doc/ros2_control_demos/example_2/doc/userdoc.html).
+Base driver and bringup package for the Mowbot autonomous lawn mower
+(ROS 2 Jazzy, rmw_zenoh, Raspberry Pi 5). Started as the
+[hoverboard-driver](https://github.com/hoverboard-robotics/hoverboard-driver)
+port of the ros2_control DiffBot example (hence the package name) and grew
+into the robot's hardware layer: drive base, Arduino I/O bridge, and the full
+sensor + Nav2 bringup.
 
-# Hints
-Connect Hoverboard PCB (USART3, GND, TX, RX, no VCC!!) to USB-TTL converter (or UART interface of your SBC).
-Set the serial port according to your setup in hoverboard_driver.ros2_control.xacro file
+Companion packages: [mowing_navigation](https://github.com/lepptu/mowing_navigation)
+(route server + BT mission executor), [mowing_msgs](https://github.com/lepptu/mowing_msgs),
+[mowbot_mqtt_bridge](https://github.com/lepptu/mowbot_mqtt_bridge),
+[mowbot_robot_arduino](https://github.com/lepptu/mowbot_robot_arduino)
+(firmware for the I/O board), and [mowbot_web_ui](https://github.com/lepptu/mowbot_web_ui).
 
-# Launch
+## What's in here
+
+| Path | Contents |
+|---|---|
+| `hardware/` | ros2_control `SystemInterface` for the hoverboard mainboard ([hoverboard-firmware-hack-FOC](https://github.com/EFeru/hoverboard-firmware-hack-FOC)-style UART protocol): wheel commands/feedback for `diff_drive_controller`, plus a helper node publishing PCB telemetry (voltage, temperature, currents, connection state) |
+| `scripts/arduino_bridge.py` | Serial bridge to the Arduino I/O board (see below) |
+| `scripts/joy_to_arduino.py` | Gamepad buttons → Arduino commands (blade enable/RPM, hoverboard power button, spare relay, LiDAR power) with 2 Hz republish so the blade keep-alive watchdog stays fed |
+| `bringup/launch/` | `bringup.launch.py` = arduino + diffbot (ros2_control, controllers, LiDAR) + gps + camera + navigation (Nav2); individual launch files usable standalone |
+| `bringup/config/` | `nav2_params.yaml`, `ekf.yaml` (robot_localization), `gps.yaml`, `twist_mux.yaml` (joystick / web drive pad / Nav2), `hoverboard_controllers.yaml`, Arduino/BNO085/joystick params, slam_toolbox mapping params |
+| `bringup/behavior_trees/` | `transit_to_segment.xml` (tame NavigateToPose BT for mowing transits — 2 retries, no Spin) and the default `navigate_to_pose.xml` |
+| `custom_bt/` | `custom_follow_path.xml` FollowPath BT |
+| `description/` | URDF/xacro + meshes; serial port configured in `description/ros2_control/hoverboard_driver.ros2_control.xacro` |
+| `docs/` | LiDAR power management notes (F29 idle power-off) |
+| `plans/` | `PLAN_ARDUINO_BRIDGE_CPP.md` — planned C++ rewrite of the bridge |
+| `maps/`, `scripts/OLD_POIS`, `*OLD-NOT-IN-USE*` | Legacy snapshots/scripts superseded by `mowing_data`, `mow_area_recorder` and `mowing_navigation`; kept for reference |
+
+## Arduino bridge (`arduino_bridge.py`)
+
+Talks to the Arduino I/O board over USB serial (10-field CSV status lines in,
+5-field command lines out, 10 Hz) and fans the fields out to ROS topics:
+
+- **Inputs → topics**: `eStop_status`, `bumperFront_status`,
+  `mowMotorALM_status`, `mowMotorRPM_FB_status`, `mowMotorCur_status`, plus
+  echo of commanded state (`mowMotorEN_status`, `mowMotorRPM_set_status`,
+  `hoverBtnR1_status`, `varaReleR2_status`, `lidarPWR_status`).
+- **Topics → outputs**: `mowMotorEN_cmd`, `mowMotorRPM_set_cmd`,
+  `hoverBtnR1_cmd` (+ `hoverBtnR1_pulse` for the web UI power button),
+  `varaReleR2_cmd`, `lidarPWR_cmd`.
+- **Safety**:
+  - *Blade keep-alive watchdog* (B8/S2) — `mowMotorEN` must be refreshed;
+    stale commanders can't leave the blade running.
+  - *E-stop blade gate* (F30) — hardware e-stop forces blade enable off and
+    latches until the commander is seen commanding it low after release.
+  - *E-stop motion lock* (F31) — e-stop also stops all motion commanders,
+    including the gamepad.
+- **Events** (firmware ≥ 2.1.0) — `EVT:` lines from the firmware are
+  republished on `arduino_events`; `EVT:BOOT`/`EVT:VER` feed a latched
+  `arduino_fw_version` topic, and a BOOT arriving mid-session is logged as an
+  Arduino reset (brown-out / WDT / USB glitch). Legacy `WARNING:` lines are
+  logged too.
+
+The wire protocol and the firmware side are documented in
+[mowbot_robot_arduino](https://github.com/lepptu/mowbot_robot_arduino).
+
+## Running
+
+Deployed as the `mowbot-launch-bringup` systemd unit (unit files live in the
+mowbot_web_ui repo's `robot/` directory), normally controlled from the web
+UI's Launch tab. Manually:
+
+```bash
+ros2 launch hoverboard_driver bringup.launch.py     # full stack
+ros2 launch hoverboard_driver diffbot.launch.py     # base + LiDAR only
+ros2 launch hoverboard_driver mapping.launch.py     # slam_toolbox mapping
 ```
-ros2 launch hoverboard_driver diffbot.launch.py
+
+`RMW_IMPLEMENTATION=rmw_zenoh_cpp` and a running `zenoh-router` are assumed.
+
+Hoverboard PCB wiring: USART3 (GND, TX, RX — **no VCC**) to a USB-TTL
+converter or the Pi's UART; set the port in the ros2_control xacro.
+
+## Build
+
+```bash
+cd ~/pi_ws
+colcon build --packages-select hoverboard_driver --symlink-install
 ```
 
-# Classes
-The entire package consists of three main classes:
-1. hoverboard_driver_node
-2. hoverboard_driver
-3. pid
+## Notes / debts
 
-whereas the first two are implemented in the same file named hoverboard_driver.cpp (blame on me)
-
-## hoverboard_driver
-This is the main class and implements the hardare interface for diff_drove_controller itself. This class is responsible for read/write to hardware.
-
-## hoverboard_driver_node
-This class is a member/attribute of hoverboard_driver class and acts as a helper class. As hoverboard_driver itselfs derives from hardware_interface::SystemInterface class, hoverboard_driver class is not able to define publishers or settable parameters. To overcome this, hoverboard_driver_node has been introduced. This class derives from rclcpp::Node and can therefore publish topics and also can define reconfigurable parameters. 
-
-This class publishes state of Hoverboard PCB like velocity, pose, command, voltage, temperature, battery level,current consumption of each motor and the state of serial interface(connected, not connected).
-
-Also this class provides dynamic parameters for PID controller
-
-## pid
-The PID class is defined as /attribute of overboard_Driver class (array, of PIDs, one per wheel).
-It works in general but it's not active now as I idn't find proper PID settings so far.
-To activate, change this code section in hoverboard_driver.cpp
-
-```    // Convert PID outputs in RAD/S to RPM
-    //double set_speed[2] = {
-     //   pid_outputs[0] / 0.10472,
-      //  pid_outputs[1] / 0.10472};
-
-     double set_speed[2] = {
-           hw_commands_[left_wheel] / 0.10472,
-           hw_commands_[right_wheel] / 0.10472
-     };
-     ```
-
-# TODO
-- add serial port as argument to launch file
-- add working PID controller
-- mapping /cmd_vel to hoverboard_driver_base/cmd_vel_unstamped not working now
-- split hoverboard_driver.cpp classes into separate files
-- clean up name mixup between hoverboard and diffbot to be more clear
+- Package/executable names still say `hoverboard_driver`/`diffbot` — renaming
+  is deliberately deferred (units, launch allowlists and docs reference them).
+- The wheel PID in `hardware/pid.cpp` is present but bypassed: commands go
+  straight through as speed setpoints (the mainboard firmware regulates).
+- `arduino_bridge.py` is slated for a C++ rewrite
+  (`plans/PLAN_ARDUINO_BRIDGE_CPP.md`).
