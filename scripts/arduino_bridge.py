@@ -3,7 +3,8 @@
 import rclpy
 print("SOLMU KÄYNNISTYY...")
 from rclpy.node import Node
-from std_msgs.msg import Int32, Bool, Float32  # String poistettu, koska lähetämme raakadataa
+from rclpy.qos import QoSProfile, DurabilityPolicy
+from std_msgs.msg import Int32, Bool, Float32, String
 import serial
 import threading
 import time
@@ -98,6 +99,18 @@ class ArduinoBridge(Node):
         self.hoverBtnR1_pub = self.create_publisher(Bool, 'hoverBtnR1_status', 10)
         self.varaReleR2_pub = self.create_publisher(Bool, 'varaReleR2_status', 10)
         self.lidarPWR_pub = self.create_publisher(Bool, 'lidarPWR_status', 10)
+
+        # --- ARDUINO EVENT LINES (firmware >= 2.1.0) ---
+        # The firmware sends comma-free "EVT:<TYPE>[:detail]" lines beside
+        # the 10-field status line: EVT:BOOT:<ver> at startup, EVT:VER:<ver>
+        # every 60 s, EVT:WATCHDOG_STOP / EVT:ESTOP_CUTOFF on safety stops.
+        # Older firmware sent "WARNING:..." lines; both are routed here.
+        latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        self.events_pub = self.create_publisher(String, 'arduino_events', 10)
+        self.fw_version_pub = self.create_publisher(String, 'arduino_fw_version', latched)
+        # True once a status line has been parsed: a BOOT event after that
+        # means the Arduino reset mid-session (brown-out, WDT, USB glitch).
+        self.got_status = False
 
         # --- AJASTIN JA LUKUSÄIE ---
         self.timer = self.create_timer(0.1, self.send_to_arduino)
@@ -195,17 +208,56 @@ class ArduinoBridge(Node):
         cmd = f"{effective_en},{self.mowMotorRpmSet_state},{self.hoverBtnR1_state},{self.varaReleR2_state},{self.lidarPWR_state}\n"
         self.ser.write(cmd.encode('utf-8'))
 
+    def _handle_event_line(self, line):
+        """Route an Arduino event line ("EVT:<TYPE>[:detail]", or legacy
+        "WARNING:...") to ROS: always republished on arduino_events, plus
+        type-specific handling. BOOT/VER carry the firmware version;
+        a BOOT arriving after status lines have already flowed means the
+        Arduino reset mid-session (brown-out, WDT, USB glitch)."""
+        evt_msg = String()
+        evt_msg.data = line
+        self.events_pub.publish(evt_msg)
+
+        if line.startswith('WARNING:'):
+            self.get_logger().warn(f"Arduino: {line}")
+            return
+
+        parts = line.split(':', 2)  # ['EVT', TYPE, detail?]
+        evt = parts[1] if len(parts) > 1 else ''
+        detail = parts[2] if len(parts) > 2 else ''
+
+        if evt in ('BOOT', 'VER'):
+            ver_msg = String()
+            ver_msg.data = detail
+            self.fw_version_pub.publish(ver_msg)
+            if evt == 'BOOT':
+                if self.got_status:
+                    self.get_logger().error(
+                        f"Arduino RESET detected mid-session (fw {detail})")
+                else:
+                    self.get_logger().info(f"Arduino booted, fw {detail}")
+        elif evt in ('WATCHDOG_STOP', 'ESTOP_CUTOFF'):
+            self.get_logger().warn(f"Arduino event: {evt}")
+        else:
+            self.get_logger().info(f"Arduino event: {line}")
+
     def read_from_arduino(self):
         """Lukee Arduinon vastauksen ja pilkkoo sen eri topiceihin"""
         while rclpy.ok():
             if self.ser.in_waiting > 0:
                 try:
                     line = self.ser.readline().decode('utf-8').strip()
-                    if line:
+                    # Event lines are routed separately and must be checked
+                    # BEFORE the 10-field status parse (additive protocol,
+                    # works with both old and new firmware).
+                    if line.startswith('EVT:') or line.startswith('WARNING:'):
+                        self._handle_event_line(line)
+                    elif line:
                         # Pilkotaan merkkijono pilkun kohdalta: "1,0,150" -> ["1", "0", "150"]
                         parts = line.split(',')
                         
                         if len(parts) == 10:
+                            self.got_status = True
                             # 0. eStop status
                             # F30: store the state so send_to_arduino's e-stop
                             # blade gate can act on it, not just republish it.
