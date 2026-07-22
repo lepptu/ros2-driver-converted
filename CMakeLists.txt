@@ -11,7 +11,8 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   pluginlib
   rclcpp
   rclcpp_lifecycle
-  control_toolbox
+  rcl_interfaces
+  std_msgs
 )
 
 # find dependencies
@@ -23,10 +24,9 @@ endforeach()
 
 ## COMPILE
 add_library(
-  hoverboard_driver 
+  hoverboard_driver
   SHARED
   hardware/hoverboard_driver.cpp
-  hardware/pid.cpp
 )
 target_compile_features(hoverboard_driver  PUBLIC cxx_std_17)
 target_include_directories(hoverboard_driver  PUBLIC

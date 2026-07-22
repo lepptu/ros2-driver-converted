@@ -15,27 +15,26 @@
 #ifndef HOVERBOARD_DRIVER_HPP_
 #define HOVERBOARD_DRIVER_HPP_
 
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
-#include "rclcpp/clock.hpp"
-#include "rclcpp/duration.hpp"
-#include "rclcpp/macros.hpp"
-#include "rclcpp/time.hpp"
-#include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
+#include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/state.hpp"
+#include "rcl_interfaces/msg/set_parameters_result.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/float64.hpp"
+#include "std_msgs/msg/u_int8.hpp"
+
 #include "hoverboard_driver/config.hpp"
 #include "hoverboard_driver/protocol.hpp"
-#include "hoverboard_driver/pid.hpp"
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/msg/float64.hpp"
-#include "std_msgs/msg/bool.hpp"
-#include "rcl_interfaces/msg/set_parameters_result.hpp"
 
 namespace hoverboard_driver
 {
@@ -48,87 +47,84 @@ namespace hoverboard_driver
     right_wheel
   };
 
-  /// @brief Helper class to get a node interface. This class is used to build publishers and dynamic parameters
-  /// for hoverboard_driver class.
+  /// @brief State shared between the ros2_control read/write thread and the
+  /// helper node's executor thread. Parameters are atomics (executor writes,
+  /// control loop reads); telemetry is a small mutex-guarded block (control
+  /// loop writes on each valid frame, the 10 Hz publisher timer reads).
+  struct SharedState
+  {
+    // Parameters
+    std::atomic<bool> motors_enabled{false};
+    std::atomic<double> auto_disable_timeout{120.0};
+    std::atomic<bool> publish_debug{true};
+
+    // Telemetry
+    std::mutex mutex;
+    double voltage{0.0};
+    double temperature{0.0};
+    double dc_curr[2]{0.0, 0.0};
+    double iq_curr[2]{0.0, 0.0};
+    double vel[2]{0.0, 0.0};
+    double pos[2]{0.0, 0.0};
+    double cmd[2]{0.0, 0.0};
+    uint8_t motor_error[2]{0, 0};
+    bool fw_motors_enabled{false};
+    bool fw_serial_timeout{false};
+    bool connected{false};
+  };
+
+  /// @brief Helper node: owns the dynamic parameters (motors_enabled,
+  /// auto_disable_timeout, publish_debug) and publishes all topics from its own
+  /// executor thread so the ros2_control loop does no DDS work.
   class hoverboard_driver_node : public rclcpp::Node
   {
   public:
-    hoverboard_driver_node();
-    /// @brief publish velocity data for debugging
-    /// @param wheel left or right wheel
-    /// @param message value to publish
-    void publish_vel(int wheel, double message);
+    explicit hoverboard_driver_node(SharedState *state);
 
-    /// @brief publish pose data for debugging
-    /// @param wheel left or right wheel
-    /// @param message value to publish
-    void publish_pos(int wheel, double message);
-
-    /// @brief publish command data for debugging
-    /// @param wheel left or right wheel
-    /// @param message value to publish
-    void publish_cmd(int wheel, double message);
-
-    /// @brief publish battery voltage
-    /// @param message value to publish
-    void publish_voltage(double message);
-
-    /// @brief publish current (power consumption) of motor
-    /// @param wheel left or right wheel
-    /// @param message value to publish
-    void publish_curr(int wheel, double message);
-
-    /// @brief publish PCB temperature
-    /// @param message value to publish
-    void publish_temp(double message);
-
-
-    /// @brief publish state of PCB (on or off)
-    /// @param message value to publish
-    void publish_connected(bool message);
-
-    /// @brief parameter callback method. 
-    /// @param parameters 
-    /// @return 
+  private:
+    void timerCallback();
     rcl_interfaces::msg::SetParametersResult parametersCallback(
         const std::vector<rclcpp::Parameter> &parameters);
 
-    /// @brief PID configuration structure
-    struct
-    {
-      bool use_pid;
-      double p;
-      double i;
-      double d;
-      double f;
-      double i_clamp_min;
-      double i_clamp_max;
-      bool antiwindup;
-    } pid_config;
+    SharedState *state_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
-  private:
-    // Publishers
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr vel_pub[2];
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pos_pub[2];
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr cmd_pub[2];
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr voltage_pub;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr curr_pub[2];
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr temp_pub;
-    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr connected_pub;
+    // Debug topics (gated by publish_debug, 10 Hz)
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr vel_pub_[2];
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr pos_pub_[2];
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr cmd_pub_[2];
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr curr_pub_[2];
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr iq_pub_[2];
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr voltage_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr temp_pub_;
 
-        // Parameter Callback handle
+    // Status topics (latched, published on change)
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr connected_pub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr motors_enabled_pub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr fw_timeout_pub_;
+    rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr error_pub_[2];
+
+    // Last published values for the on-change topics
+    bool first_status_pub_{true};
+    bool last_connected_{false};
+    bool last_fw_enabled_{false};
+    bool last_fw_timeout_{false};
+    uint8_t last_error_[2]{0, 0};
+
     OnSetParametersCallbackHandle::SharedPtr callback_handle_;
   };
 
-  /// @brief Hardware Interface class to communicate with Hoverboard PCB
+  /// @brief ros2_control hardware interface for the hoverboard mainboard
+  /// (lepptu firmware fork, standby/flags protocol).
   class hoverboard_driver : public hardware_interface::SystemInterface
   {
   public:
     RCLCPP_SHARED_PTR_DEFINITIONS(hoverboard_driver);
 
+    ~hoverboard_driver() override;
+
     hardware_interface::CallbackReturn on_init(
-        const hardware_interface::HardwareComponentInterfaceParams & info) override;
-        //const hardware_interface::HardwareInfo &info) override;
+        const hardware_interface::HardwareComponentInterfaceParams &info) override;
 
     std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
 
@@ -143,46 +139,57 @@ namespace hoverboard_driver
     hardware_interface::return_type read(
         const rclcpp::Time &time, const rclcpp::Duration &period) override;
 
-    // HOVERBOARD_DRIVER_PUBLIC
     hardware_interface::return_type write(
         const rclcpp::Time &time, const rclcpp::Duration &period) override;
 
-    std::shared_ptr<hoverboard_driver_node> hardware_publisher; // make the publisher node a member
   private:
-    // Store the command for the simulated robot
+    void protocol_recv(const rclcpp::Time &time, uint8_t byte);
+    void on_encoder_update(const rclcpp::Time &time, int16_t right_raw, int16_t left_raw);
+
+    // Shared state must outlive the node/executor that reference it.
+    SharedState shared_state_;
+    std::shared_ptr<hoverboard_driver_node> hardware_publisher_;
+    rclcpp::executors::SingleThreadedExecutor::SharedPtr executor_;
+    std::thread spin_thread_;
+    std::atomic<bool> spin_done_{false};
+
     std::vector<double> hw_commands_;
     std::vector<double> hw_positions_;
     std::vector<double> hw_velocities_;
 
-    void protocol_recv(const rclcpp::Time &time, char c);
-    void on_encoder_update(const rclcpp::Time &time, int16_t right, int16_t left);
+    double wheel_radius_{0.0};
+    double max_velocity_radps_{0.0};
+    std::string port_;
+    int port_fd_{-1};
 
-    double wheel_radius;
-    double max_velocity = 0.0;
-    int direction_correction = 1;
-    std::string port;
+    // Serial frame reassembly
+    unsigned int msg_len_{0};
+    uint8_t prev_byte_{0};
+    uint8_t *p_{nullptr};
+    SerialFeedback msg_;
 
-    rclcpp::Time last_read;
-    bool first_read_pass_;
-    // Last known encoder values
-    int16_t last_wheelcountR;
-    int16_t last_wheelcountL;
-    // Count of full encoder wraps
-    int multR;
-    int multL;
-    // Thresholds for calculating the wrap
-    int low_wrap;
-    int high_wrap;
+    // Link state (control thread only)
+    rclcpp::Time last_valid_frame_;
+    bool have_valid_frame_{false};
+    bool fw_enabled_rt_{false};
+    bool fw_connected_rt_{false};
 
-    // Hoverboard protocol
-    int port_fd;
-    unsigned long msg_len = 0;
-    char prev_byte = 0;
-    uint16_t start_frame = 0;
-    char *p;
-    SerialFeedback msg, prev_msg;
+    // Odometry state (control thread only; reset in on_activate)
+    int low_wrap_{0};
+    int high_wrap_{0};
+    int16_t last_wheelcount_[2]{0, 0}; // raw firmware counts [0, ENCODER_MAX)
+    int mult_[2]{0, 0};                // completed wraps
+    double last_pos_[2]{0.0, 0.0};     // unwrapped ticks at previous frame
+    double accum_pos_[2]{0.0, 0.0};    // accumulated ticks since activation (board-restart proof)
+    bool first_encoder_pass_{true};
 
-    PID pids[2];
+    // Arming / auto-disable (control thread only)
+    bool arm_request_{false};
+    bool prev_allowed_{false};
+    rclcpp::Time last_cmd_activity_;
+    bool have_cmd_activity_{false};
+
+    rclcpp::Clock steady_clock_{RCL_STEADY_TIME}; // for throttled logging
   };
 
 } // namespace hoverboard_driver
