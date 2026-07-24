@@ -29,6 +29,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "rcl_interfaces/msg/set_parameters_result.hpp"
+#include "sensor_msgs/msg/battery_state.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/float64.hpp"
 #include "std_msgs/msg/u_int8.hpp"
@@ -70,6 +71,7 @@ namespace hoverboard_driver
     double vel[2]{0.0, 0.0};
     double pos[2]{0.0, 0.0};
     double cmd[2]{0.0, 0.0};
+    double cmd_echo[2]{0.0, 0.0}; // per-wheel rad/s reconstructed from firmware cmd1/cmd2 echo
     uint8_t motor_error[2]{0, 0};
     bool fw_motors_enabled{false};
     bool fw_serial_timeout{false};
@@ -100,9 +102,16 @@ namespace hoverboard_driver
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr iq_pub_[2];
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr voltage_pub_;
     rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr temp_pub_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr cmd_echo_pub_[2];
+
+    // Battery state (1 Hz, from the 10 Hz timer)
+    rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr battery_pub_;
+    int battery_tick_{0};
+    double pct_filt_{-1.0}; // filtered percentage [0..1]; <0 = uninitialized
 
     // Status topics (latched, published on change)
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr connected_pub_;
+    rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr motors_allowed_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr motors_enabled_pub_;
     rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr fw_timeout_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt8>::SharedPtr error_pub_[2];
@@ -110,6 +119,7 @@ namespace hoverboard_driver
     // Last published values for the on-change topics
     bool first_status_pub_{true};
     bool last_connected_{false};
+    bool last_allowed_{false};
     bool last_fw_enabled_{false};
     bool last_fw_timeout_{false};
     uint8_t last_error_[2]{0, 0};
@@ -191,6 +201,12 @@ namespace hoverboard_driver
     bool prev_allowed_{false};
     rclcpp::Time last_cmd_activity_;
     bool have_cmd_activity_{false};
+
+    // Command echo verification (control thread only)
+    int16_t last_sent_steer_{0};
+    int16_t last_sent_speed_{0};
+    bool sent_valid_{false};
+    int echo_mismatch_count_{0};
 
     rclcpp::Clock steady_clock_{RCL_STEADY_TIME}; // for throttled logging
   };

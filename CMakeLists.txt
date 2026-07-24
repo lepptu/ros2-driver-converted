@@ -12,6 +12,7 @@ set(THIS_PACKAGE_INCLUDE_DEPENDS
   rclcpp
   rclcpp_lifecycle
   rcl_interfaces
+  sensor_msgs
   std_msgs
 )
 
@@ -72,6 +73,7 @@ install(PROGRAMS
   scripts/joy_to_arduino.py
   scripts/record_boundary.py
   scripts/mowing_manager.py
+  scripts/hoverboard_power_manager.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -108,6 +108,16 @@ def generate_launch_description():
         arguments=["hoverboard_base_controller", "--controller-manager", "/controller_manager"],
     )
 
+    # Hoverboard power-on orchestration: pulses the power relay once at stack
+    # startup if the board is not streaming (DEPLOY_TODO 3.1). Never re-pulses
+    # a board that was turned off deliberately later.
+    hoverboard_power_manager_node = Node(
+        package="hoverboard_driver",
+        executable="hoverboard_power_manager.py",
+        name="hoverboard_power_manager",
+        output="screen",
+    )
+
     # Delay rviz start after `joint_state_broadcaster`
     #delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
     #    event_handler=OnProcessExit(
@@ -204,6 +214,7 @@ def generate_launch_description():
         joint_state_broadcaster_spawner,
        # delay_rviz_after_joint_state_broadcaster_spawner,
         delay_robot_controller_spawner_after_joint_state_broadcaster_spawner,
+        hoverboard_power_manager_node,
         lidar_node,
         imu_node,
         ekf_node,

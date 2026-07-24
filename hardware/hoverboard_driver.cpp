@@ -43,6 +43,36 @@ namespace hoverboard_driver
     {
       return v < lo ? lo : (v > hi ? hi : v);
     }
+
+    // Approximate 1S li-ion open-circuit-voltage -> state-of-charge curve.
+    // Voltage-based estimate (not coulomb counting); good enough for a gauge
+    // and a low-battery threshold.
+    double cellPercentage(double vcell)
+    {
+      static const struct
+      {
+        double v, p;
+      } lut[] = {{3.00, 0.00}, {3.30, 0.05}, {3.50, 0.20}, {3.70, 0.50},
+                 {3.90, 0.75}, {4.05, 0.90}, {4.20, 1.00}};
+      constexpr size_t n = sizeof(lut) / sizeof(lut[0]);
+      if (vcell <= lut[0].v)
+      {
+        return 0.0;
+      }
+      if (vcell >= lut[n - 1].v)
+      {
+        return 1.0;
+      }
+      for (size_t i = 1; i < n; i++)
+      {
+        if (vcell < lut[i].v)
+        {
+          const double t = (vcell - lut[i - 1].v) / (lut[i].v - lut[i - 1].v);
+          return lut[i - 1].p + t * (lut[i].p - lut[i - 1].p);
+        }
+      }
+      return 1.0;
+    }
   } // namespace
 
   // ========================== helper node ==========================
@@ -50,7 +80,12 @@ namespace hoverboard_driver
   hoverboard_driver_node::hoverboard_driver_node(SharedState *state)
       : Node("hoverboard_driver_node"), state_(state)
   {
-    declare_parameter("motors_enabled", false);
+    // Standing-permission policy (plan decision 2026-07-24): motors_enabled
+    // defaults TRUE — it is a persistent master switch, not a per-drive arm.
+    // Boot does not arm (no parameter edge at activation); the first drive
+    // command arms silently. The web backend persists an OFF preference and
+    // asserts it here at startup (set only if different, to avoid arm edges).
+    declare_parameter("motors_enabled", true);
     declare_parameter("auto_disable_timeout", 120.0);
     declare_parameter("publish_debug", true);
     state_->motors_enabled = get_parameter("motors_enabled").as_bool();
@@ -75,8 +110,13 @@ namespace hoverboard_driver
     iq_pub_[right_wheel] = create_publisher<std_msgs::msg::Float64>("hoverboard/right_wheel/iq_current", debug_qos);
     voltage_pub_ = create_publisher<std_msgs::msg::Float64>("hoverboard/battery_voltage", debug_qos);
     temp_pub_ = create_publisher<std_msgs::msg::Float64>("hoverboard/temperature", debug_qos);
+    cmd_echo_pub_[left_wheel] = create_publisher<std_msgs::msg::Float64>("hoverboard/left_wheel/cmd_echo", debug_qos);
+    cmd_echo_pub_[right_wheel] = create_publisher<std_msgs::msg::Float64>("hoverboard/right_wheel/cmd_echo", debug_qos);
+
+    battery_pub_ = create_publisher<sensor_msgs::msg::BatteryState>("hoverboard/battery_state", debug_qos);
 
     connected_pub_ = create_publisher<std_msgs::msg::Bool>("hoverboard/connected", latched_qos);
+    motors_allowed_pub_ = create_publisher<std_msgs::msg::Bool>("hoverboard/motors_allowed", latched_qos);
     motors_enabled_pub_ = create_publisher<std_msgs::msg::Bool>("hoverboard/motors_enabled", latched_qos);
     fw_timeout_pub_ = create_publisher<std_msgs::msg::Bool>("hoverboard/firmware_serial_timeout", latched_qos);
     error_pub_[left_wheel] = create_publisher<std_msgs::msg::UInt8>("hoverboard/left_wheel/error", latched_qos);
@@ -100,6 +140,7 @@ namespace hoverboard_driver
         snap.vel[i] = state_->vel[i];
         snap.pos[i] = state_->pos[i];
         snap.cmd[i] = state_->cmd[i];
+        snap.cmd_echo[i] = state_->cmd_echo[i];
         snap.motor_error[i] = state_->motor_error[i];
       }
       snap.fw_motors_enabled = state_->fw_motors_enabled;
@@ -122,11 +163,50 @@ namespace hoverboard_driver
         curr_pub_[i]->publish(f);
         f.data = snap.iq_curr[i];
         iq_pub_[i]->publish(f);
+        f.data = snap.cmd_echo[i];
+        cmd_echo_pub_[i]->publish(f);
       }
       f.data = snap.voltage;
       voltage_pub_->publish(f);
       f.data = snap.temperature;
       temp_pub_->publish(f);
+    }
+
+    // Battery state at 1 Hz (every 10th tick of the 10 Hz timer)
+    if (++battery_tick_ >= 10)
+    {
+      battery_tick_ = 0;
+      sensor_msgs::msg::BatteryState bat;
+      bat.header.stamp = now();
+      bat.power_supply_technology = sensor_msgs::msg::BatteryState::POWER_SUPPLY_TECHNOLOGY_LION;
+      bat.location = "hoverboard";
+      bat.design_capacity = std::numeric_limits<float>::quiet_NaN();
+      bat.capacity = std::numeric_limits<float>::quiet_NaN();
+      bat.charge = std::numeric_limits<float>::quiet_NaN();
+      bat.present = snap.connected;
+      if (snap.connected)
+      {
+        bat.voltage = static_cast<float>(snap.voltage);
+        // Sign convention: BatteryState current is negative when discharging.
+        // Assumes firmware dc_curr positive = discharging (verify on a drive:
+        // hoverboard/*/dc_current should read positive going forward).
+        // Note: DC-link sensing sees motor draw only, not board electronics.
+        bat.current = static_cast<float>(-(snap.dc_curr[left_wheel] + snap.dc_curr[right_wheel]));
+        const double pct_raw = cellPercentage(snap.voltage / 10.0); // 10s pack (BAT_CELLS)
+        pct_filt_ = (pct_filt_ < 0.0) ? pct_raw : pct_filt_ + 0.2 * (pct_raw - pct_filt_);
+        bat.percentage = static_cast<float>(pct_filt_);
+        bat.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_DISCHARGING;
+        bat.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_GOOD;
+      }
+      else
+      {
+        bat.voltage = std::numeric_limits<float>::quiet_NaN();
+        bat.current = std::numeric_limits<float>::quiet_NaN();
+        bat.percentage = std::numeric_limits<float>::quiet_NaN();
+        bat.power_supply_status = sensor_msgs::msg::BatteryState::POWER_SUPPLY_STATUS_UNKNOWN;
+        bat.power_supply_health = sensor_msgs::msg::BatteryState::POWER_SUPPLY_HEALTH_UNKNOWN;
+      }
+      battery_pub_->publish(bat);
     }
 
     std_msgs::msg::Bool b;
@@ -136,6 +216,13 @@ namespace hoverboard_driver
       b.data = snap.connected;
       connected_pub_->publish(b);
       last_connected_ = snap.connected;
+    }
+    const bool allowed_now = state_->motors_enabled.load();
+    if (first_status_pub_ || allowed_now != last_allowed_)
+    {
+      b.data = allowed_now;
+      motors_allowed_pub_->publish(b);
+      last_allowed_ = allowed_now;
     }
     if (first_status_pub_ || snap.fw_motors_enabled != last_fw_enabled_)
     {
@@ -176,12 +263,20 @@ namespace hoverboard_driver
     {
       if (param.get_name() == "motors_enabled")
       {
+        const bool prev = state_->motors_enabled.load();
         state_->motors_enabled = param.as_bool();
-        if (param.as_bool())
+        if (param.as_bool() && !prev)
         {
-          state_->arm_edge = true; // arm also when re-set to true after an auto-disable
+          // Arm on an actual OFF->ON change only. Same-value re-asserts (the
+          // bridge re-applies persisted overrides whenever the driver node
+          // reappears) must stay silent - under standing permission, driving
+          // is the arming action while the switch is already ON.
+          state_->arm_edge = true;
         }
-        RCLCPP_INFO(get_logger(), "motors_enabled set to %s", param.as_bool() ? "true" : "false");
+        if (param.as_bool() != prev)
+        {
+          RCLCPP_INFO(get_logger(), "motors_enabled set to %s", param.as_bool() ? "true" : "false");
+        }
       }
       else if (param.get_name() == "auto_disable_timeout")
       {
@@ -376,8 +471,13 @@ namespace hoverboard_driver
     fw_enabled_rt_ = false;
     fw_connected_rt_ = false;
     arm_request_ = false;
-    prev_allowed_ = false;
+    // Standing permission: no arming edge at (re)activation — a boot-time
+    // motors_enabled=true must NOT arm; the first drive command arms silently.
+    prev_allowed_ = shared_state_.motors_enabled.load();
+    shared_state_.arm_edge = false; // discard any pre-activation edge
     have_cmd_activity_ = false;
+    sent_valid_ = false;
+    echo_mismatch_count_ = 0;
     msg_len_ = 0;
     prev_byte_ = 0;
 
@@ -536,6 +636,35 @@ namespace hoverboard_driver
 
         fw_enabled_rt_ = (msg_.cmdLed >> 8) & 0x01;
 
+        // Command echo verification: cmd1/cmd2 are the steer/speed values the
+        // firmware accepted (identity mapping in this config). Reconstruct the
+        // per-wheel commands via the firmware mixer (cmdL = speed + 0.5*steer).
+        const double echo_l_rpm = msg_.cmd2 + 0.5 * msg_.cmd1;
+        const double echo_r_rpm = msg_.cmd2 - 0.5 * msg_.cmd1;
+        if (sent_valid_ && arm_request_ && fw_enabled_rt_)
+        {
+          if (std::abs(msg_.cmd1 - last_sent_steer_) > 15 ||
+              std::abs(msg_.cmd2 - last_sent_speed_) > 15)
+          {
+            echo_mismatch_count_++;
+            if (echo_mismatch_count_ > 50) // ~0.5 s of continuous disagreement
+            {
+              RCLCPP_WARN_THROTTLE(rclcpp::get_logger("hoverboard_driver"), steady_clock_, 5000,
+                                   "Command echo mismatch: sent steer/speed %d/%d, firmware heard %d/%d "
+                                   "- command path is distorting values",
+                                   last_sent_steer_, last_sent_speed_, msg_.cmd1, msg_.cmd2);
+            }
+          }
+          else
+          {
+            echo_mismatch_count_ = 0;
+          }
+        }
+        else
+        {
+          echo_mismatch_count_ = 0;
+        }
+
         {
           std::lock_guard<std::mutex> lock(shared_state_.mutex);
           shared_state_.voltage = msg_.batVoltage / 100.0;
@@ -548,6 +677,8 @@ namespace hoverboard_driver
           shared_state_.vel[right_wheel] = hw_velocities_[right_wheel];
           shared_state_.pos[left_wheel] = hw_positions_[left_wheel];
           shared_state_.pos[right_wheel] = hw_positions_[right_wheel];
+          shared_state_.cmd_echo[left_wheel] = echo_l_rpm * RPM_TO_RADPS;
+          shared_state_.cmd_echo[right_wheel] = echo_r_rpm * RPM_TO_RADPS;
           shared_state_.motor_error[left_wheel] = msg_.cmdLed & 0x0F;
           shared_state_.motor_error[right_wheel] = (msg_.cmdLed >> 4) & 0x0F;
           shared_state_.fw_motors_enabled = fw_enabled_rt_;
@@ -659,6 +790,11 @@ namespace hoverboard_driver
       RCLCPP_ERROR_THROTTLE(rclcpp::get_logger("hoverboard_driver"), steady_clock_, 5000,
                             "Error writing to hoverboard serial port (rc=%zd)", rc);
     }
+
+    // Remember what was sent for the cmd1/cmd2 echo verification in protocol_recv().
+    last_sent_steer_ = command.steer;
+    last_sent_speed_ = command.speed;
+    sent_valid_ = true;
 
     {
       std::lock_guard<std::mutex> lock(shared_state_.mutex);
