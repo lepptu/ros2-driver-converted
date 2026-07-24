@@ -57,6 +57,9 @@ namespace hoverboard_driver
     std::atomic<bool> motors_enabled{false};
     std::atomic<double> auto_disable_timeout{120.0};
     std::atomic<bool> publish_debug{true};
+    // Set on every motors_enabled=true parameter set (even same-value re-sets),
+    // consumed by write(): "arm now" also after an auto-disable.
+    std::atomic<bool> arm_edge{false};
 
     // Telemetry
     std::mutex mutex;

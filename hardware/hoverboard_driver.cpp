@@ -177,6 +177,10 @@ namespace hoverboard_driver
       if (param.get_name() == "motors_enabled")
       {
         state_->motors_enabled = param.as_bool();
+        if (param.as_bool())
+        {
+          state_->arm_edge = true; // arm also when re-set to true after an auto-disable
+        }
         RCLCPP_INFO(get_logger(), "motors_enabled set to %s", param.as_bool() ? "true" : "false");
       }
       else if (param.get_name() == "auto_disable_timeout")
@@ -579,17 +583,19 @@ namespace hoverboard_driver
     const bool cmd_active = std::abs(cmd_l) > 1e-3 || std::abs(cmd_r) > 1e-3;
     const bool allowed = shared_state_.motors_enabled.load();
 
-    // Arming policy: explicit enable arms immediately; auto-disable after
-    // auto_disable_timeout of zero commands; silent re-arm on command resume.
+    // Arming policy: explicit enable arms immediately (any set-to-true, also a
+    // re-set after auto-disable); auto-disable after auto_disable_timeout of
+    // zero commands; silent re-arm on command resume.
+    const bool arm_edge = shared_state_.arm_edge.exchange(false);
     if (!allowed)
     {
       arm_request_ = false;
     }
     else
     {
-      if (!prev_allowed_)
+      if (!prev_allowed_ || arm_edge)
       {
-        arm_request_ = true; // rising edge of motors_enabled: arm now
+        arm_request_ = true;
         last_cmd_activity_ = time;
         have_cmd_activity_ = true;
       }
