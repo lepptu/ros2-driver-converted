@@ -585,58 +585,55 @@ collision_monitor:
       max_height: 2.0
       enabled: True
 
+# Docking server (mowbot_plans "Docking plan" 04 §2.1, decided 2026-09-07).
+# Robot BACKS into the dock (contacts on the rear, README D10). The dock pose
+# is NOT stored here: dock_manager (mowbot_mqtt_bridge) sends it in every
+# DockRobot goal from ~/pi_ws/mowing_data/config/dock.json (use_dock_id:false,
+# dock_type: mowbot_dock_plugin) — moving the dock never touches this file.
+# Charge detection = dock_agent's /dock/battery_state (remapped in
+# navigation.launch.py); docked detection = pose within docking_threshold.
 docking_server:
   ros__parameters:
-    enable_stamped_cmd_vel: True 
-    controller_frequency: 50.0
-    initial_perception_timeout: 5.0
-    wait_charge_timeout: 5.0
-    dock_approach_timeout: 30.0
+    enable_stamped_cmd_vel: True       # twist_mux runs use_stamped: true
+    controller_frequency: 20.0
+    initial_perception_timeout: 5.0    # irrelevant: no external detection (blind RTK docking, README D2)
+    wait_charge_timeout: 15.0          # charging starts ~200 ms after seating (02 §8); budget = K1→AC ramp + WiFi slack
+    dock_approach_timeout: 60.0        # 2.0 m reverse at 0.10–0.15 m/s ≈ 15–20 s, plus settling
     undock_linear_tolerance: 0.05
     undock_angular_tolerance: 0.1
-    max_retries: 3
+    max_retries: 3                     # each retry: forward to staging, reverse again
     base_frame: "base_link"
-    fixed_frame: "odom"
-    dock_backwards: false
-    dock_prestaging_tolerance: 0.5
+    fixed_frame: "map"                 # 2026-09-07 field finding (04 §10.9): the map heading estimate is unobserved at rest and only converges while driving; with "odom" the target is frozen once at approach start with whatever heading error exists after the turn at staging (19.5° → robot backed to a point 0.6 m beside the dock). In "map" the target is re-evaluated every cycle and the approach re-aims as the estimate converges. RTK jitter (2–3 cm) at 0.1 m/s is harmless.
+    dock_backwards: true               # server rotates the approach target by π itself; staging stays in FRONT of the seated robot
+    dock_prestaging_tolerance: 0.5     # already within this of staging → skip the Nav2 leg
 
-    # Types of docks
-    dock_plugins: ['simple_charging_dock']
-    simple_charging_dock:
-      plugin: 'opennav_docking::SimpleChargingDock'
-      docking_threshold: 0.05
-      staging_x_offset: -0.7
-      use_external_detection_pose: true
-      use_battery_status: false # true
-      use_stall_detection: false # true
-
-      external_detection_timeout: 1.0
-      external_detection_translation_x: -0.18
-      external_detection_translation_y: 0.0
-      external_detection_rotation_roll: -1.57
-      external_detection_rotation_pitch: -1.57
-      external_detection_rotation_yaw: 0.0
-      filter_coef: 0.1
-
-    # Dock instances
-    # The following example illustrates configuring dock instances.
-    # docks: ['home_dock']  # Input your docks here
-    # home_dock:
-    #   type: 'simple_charging_dock'
-    #   frame: map
-    #   pose: [0.0, 0.0, 0.0]
+    dock_plugins: ["mowbot_dock_plugin"]
+    mowbot_dock_plugin:
+      # Custom plugin (mowing_navigation, README D8 — 2026-09-07): isDocked =
+      # the dock's seat microswitch. The stock SimpleChargingDock refuses to
+      # undock after a bringup restart / manual park ("Robot is not in the
+      # dock") because its docked test is pose memory from the same server
+      # run and the sequenced undock switches charging off first.
+      plugin: "mowing_navigation::MowbotChargingDock"
+      charging_threshold: 0.2              # A — dock ACS712: ±0.02 A noise; a seated robot always draws ≥0.35 A through the charger; ~2 A bulk (04 Q2)
+      docking_threshold: 0.05              # m — pose FALLBACK only, used when the microswitch topic is stale
+      staging_x_offset: 2.0                # POSITIVE: staging = seated pose + 2.0 m along the recorded yaw (in front of the seated robot). 2.0 m for the first tests, tune down toward 0.7 (04 §2.1 note: blind reverse, heading error × distance = lateral miss)
+      staging_yaw_offset: 0.0              # robot at staging faces away from the dock
+      telemetry_stale_s: 5.0               # microswitch / battery_state older than this = dock Pi unreachable
+      microswitch_topic: "/dock/microswitch"
+      battery_state_topic: "battery_state" # remapped to /dock/battery_state in navigation.launch.py
 
     controller:
       k_phi: 3.0
       k_delta: 2.0
-      v_linear_min: 0.15
-      v_linear_max: 0.15
-      use_collision_detection: true
+      v_linear_min: 0.10                   # hoverboard low-speed floor: slower may not move at all
+      v_linear_max: 0.15                   # gentle contact
+      use_collision_detection: false       # the dock itself is a LiDAR obstacle in the local costmap — would block the last 0.3 m (04 §5); revisit after field tests (README open question 2)
       costmap_topic: "local_costmap/costmap_raw"
       footprint_topic: "local_costmap/published_footprint"
       transform_tolerance: 0.1
       projection_time: 5.0
-      simulation_step: 0.1
+      simulation_time_step: 0.1
       dock_collision_threshold: 0.3
 
 #loopback_simulator:

@@ -20,7 +20,8 @@ def generate_launch_description():
         'bt_navigator',
         'waypoint_follower',
         'velocity_smoother',
-        'collision_monitor'
+        'collision_monitor',
+        'docking_server'        # opennav_docking (Docking plan 04 §2.2)
     ]
 
     # Yhteiset parametrit kaikille Nav2-solmuille
@@ -120,6 +121,21 @@ def generate_launch_description():
                 remappings=remappings
             ),
             
+            # 8b. Docking server (opennav_docking, Docking plan 04 §2.2):
+            #  - cmd_vel -> cmd_vel_raw like the controller/behavior servers, so
+            #    docking velocities go through the velocity smoother -> cmd_vel_nav
+            #    -> twist_mux (nav priority, e-stop lock);
+            #  - battery_state -> /dock/battery_state, published by the dock Pi's
+            #    dock_agent over zenoh (charge detection for SimpleChargingDock).
+            ComposableNode(
+                package='opennav_docking',
+                plugin='opennav_docking::DockingServer',
+                name='docking_server',
+                parameters=node_parameters,
+                remappings=remappings + [('cmd_vel', 'cmd_vel_raw'),
+                                         ('battery_state', '/dock/battery_state')]
+            ),
+
             # 9. Lifecycle Manager
             ComposableNode(
                 package='nav2_lifecycle_manager',
