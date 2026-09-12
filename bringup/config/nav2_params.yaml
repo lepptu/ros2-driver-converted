@@ -603,7 +603,7 @@ docking_server:
     undock_angular_tolerance: 0.1
     max_retries: 3                     # each retry: forward to staging, reverse again
     base_frame: "base_link"
-    fixed_frame: "map"                 # 2026-09-07 field finding (04 §10.9): the map heading estimate is unobserved at rest and only converges while driving; with "odom" the target is frozen once at approach start with whatever heading error exists after the turn at staging (19.5° → robot backed to a point 0.6 m beside the dock). In "map" the target is re-evaluated every cycle and the approach re-aims as the estimate converges. RTK jitter (2–3 cm) at 0.1 m/s is harmless.
+    fixed_frame: "odom"                # back to odom 2026-09-12 (04 §10.10): the V detection is re-measured every cycle in the lidar frame, so the smooth short-term frame is right; "map" (§10.9) was a stop-gap for the frozen-target problem and makes UNDOCK arc when the map heading is wrong
     dock_backwards: true               # server rotates the approach target by π itself; staging stays in FRONT of the seated robot
     dock_prestaging_tolerance: 0.5     # already within this of staging → skip the Nav2 leg
 
@@ -617,11 +617,23 @@ docking_server:
       plugin: "mowing_navigation::MowbotChargingDock"
       charging_threshold: 0.2              # A — dock ACS712: ±0.02 A noise; a seated robot always draws ≥0.35 A through the charger; ~2 A bulk (04 Q2)
       docking_threshold: 0.05              # m — pose FALLBACK only, used when the microswitch topic is stale
-      staging_x_offset: 2.0                # POSITIVE: staging = seated pose + 2.0 m along the recorded yaw (in front of the seated robot). 2.0 m for the first tests, tune down toward 0.7 (04 §2.1 note: blind reverse, heading error × distance = lateral miss)
+      staging_x_offset: 1.2                # POSITIVE: staging = seated pose + offset along the recorded yaw (in front of the seated robot). 1.2 m since 2026-09-12: the lidar V is visible from ~1.3 m in (the scan plane passes under it at 2 m on the slope, 04 §10.10), so the approach starts with the measurement in view
       staging_yaw_offset: 0.0              # robot at staging faces away from the dock
       telemetry_stale_s: 5.0               # microswitch / battery_state older than this = dock Pi unreachable
       microswitch_topic: "/dock/microswitch"
       battery_state_topic: "battery_state" # remapped to /dock/battery_state in navigation.launch.py
+      # Lidar V-target detection (04 §10.10, 2026-09-12): dock_v_detector publishes the
+      # V apex + axis in the lidar frame; the plugin turns it into the dock pose and uses
+      # it whenever fresh, else the dock.json prior. apex→base_link measured seated: 0.37 m.
+      use_external_detection_pose: true
+      external_detection_topic: "detected_dock_pose"
+      external_detection_timeout: 1.0
+      apex_to_base_m: 0.37
+      filter_coef: 0.2                     # low-pass on the detected dock pose (per 20 Hz cycle). 0.05 lagged ~1 s and left residual steering at the end once the axis estimate itself was clean (2026-09-12)
+      lock_dist_m: 0.6                     # final stretch: once the apex is this close AND the robot is aligned (below), freeze the target -> straight push, no more steering from jitter
+      lock_lateral_m: 0.03
+      lock_yaw_deg: 3.0
+      target_overshoot_m: 0.25             # aim this far past the seated pose: the graceful controller's steering gain ~1/r made the robot zigzag 0.35 m short of the target (2026-09-12); the seat microswitch ends the approach on contact anyway
 
     controller:
       k_phi: 3.0

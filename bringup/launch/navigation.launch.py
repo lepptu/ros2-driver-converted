@@ -160,8 +160,23 @@ def generate_launch_description():
         output='screen',
     )
 
+    # Docking plan 04 §10.10: lidar V-target detector for the docking server's
+    # external detection pose (publishes detected_dock_pose in the lidar frame;
+    # silent while the lidar is off — dock_manager powers it on before docking).
+    dock_v_detector_node = Node(
+        package='mowing_navigation',
+        executable='dock_v_detector',
+        name='dock_v_detector',
+        output='screen',
+        parameters=[{'apex_to_base_m': 0.37,
+                     'width_tolerance': 0.25,     # real V 0.32 m: accept 0.24–0.40 (a 0.44 m garden corner matched at 45 %)
+                     'depth_tolerance': 0.35,     # real V 0.092 m: accept 0.06–0.125 (tilt/oblique views shrink it)
+                     'angle_tolerance_deg': 18.0}],
+    )
+
     return LaunchDescription([
         nav2_container,
         load_composable_nodes,
         keepout_mask_node,
+        dock_v_detector_node,
     ])
