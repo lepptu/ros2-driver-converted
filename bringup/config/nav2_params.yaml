@@ -638,8 +638,9 @@ docking_server:
     controller:
       k_phi: 3.0
       k_delta: 2.0
-      v_linear_min: 0.10                   # hoverboard low-speed floor: slower may not move at all
-      v_linear_max: 0.15                   # gentle contact
+      v_linear_min: 0.15                   # 2026-09-12: hoverboard pushes poorly at the low end; the final push into the funnel needs to be firm (was 0.10)
+      v_linear_max: 0.15                   # 2026-09-12: back to 0.15 — 0.25 wedged harder (13° pivot); the open-loop straight push handles the last stretch
+      v_angular_max: 0.5                   # cap the pivot when one tyre catches (default 0.75 wrenched the robot 11° while blocked)
       use_collision_detection: false       # the dock itself is a LiDAR obstacle in the local costmap — would block the last 0.3 m (04 §5); revisit after field tests (README open question 2)
       costmap_topic: "local_costmap/costmap_raw"
       footprint_topic: "local_costmap/published_footprint"
