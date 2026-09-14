@@ -174,9 +174,24 @@ def generate_launch_description():
                      'angle_tolerance_deg': 18.0}],
     )
 
+    # F63: lidar health monitor — reads what is IN the LD06 scans (valid
+    # fraction, dead sector, near-lens blob, rate) and publishes the retained
+    # /lidar/health verdict that mission start, go-to, dock/undock and the
+    # scheduler consult. Thresholds tuned from the web UI are persisted in the
+    # overrides file, loaded here so they survive a bringup restart.
+    overrides_file = '/home/ros-pi/pi_ws/mowing_data/config/mowing_overrides.yaml'
+    lidar_health_node = Node(
+        package='mowing_navigation',
+        executable='lidar_health_monitor',
+        name='lidar_health_monitor',
+        output='screen',
+        parameters=[overrides_file] if os.path.exists(overrides_file) else [],
+    )
+
     return LaunchDescription([
         nav2_container,
         load_composable_nodes,
         keepout_mask_node,
         dock_v_detector_node,
+        lidar_health_node,
     ])
